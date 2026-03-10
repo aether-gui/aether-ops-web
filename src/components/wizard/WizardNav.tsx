@@ -35,7 +35,7 @@ export default function WizardNav({
       <button
         onClick={onContinue}
         disabled={!canContinue || loading}
-        className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+        className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
       >
         {loading ? (
           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

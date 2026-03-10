@@ -16,7 +16,7 @@
   }
 
   ::selection {
-    @apply bg-teal-100 text-teal-900;
+    @apply bg-intel-100 text-intel-900;
   }
 }
 

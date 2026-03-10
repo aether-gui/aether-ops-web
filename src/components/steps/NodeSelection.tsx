@@ -252,7 +252,7 @@ export default function NodeSelection({ data, update }: NodeSelectionProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 size={24} className="text-teal-600 animate-spin" />
+        <Loader2 size={24} className="text-intel-600 animate-spin" />
       </div>
     );
   }
@@ -288,7 +288,7 @@ export default function NodeSelection({ data, update }: NodeSelectionProps) {
                   className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                     isExcluded
                       ? 'border-gray-300 bg-white'
-                      : 'border-teal-600 bg-teal-600'
+                      : 'border-intel-600 bg-intel-600'
                   }`}
                 >
                   {!isExcluded && (
@@ -318,7 +318,7 @@ export default function NodeSelection({ data, update }: NodeSelectionProps) {
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-gray-900">{node.name}</p>
                   {isLocalhost(node) && (
-                    <span className="px-1.5 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-medium rounded">
+                    <span className="px-1.5 py-0.5 bg-intel-50 text-intel-700 text-[10px] font-medium rounded">
                       LOCAL
                     </span>
                   )}
@@ -379,7 +379,7 @@ export default function NodeSelection({ data, update }: NodeSelectionProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-intel-700 bg-intel-50 border border-intel-200 rounded-lg hover:bg-intel-100 transition-colors"
         >
           <Plus size={16} />
           Add Node

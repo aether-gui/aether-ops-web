@@ -52,7 +52,7 @@ export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalPr
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. worker-1"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-shadow"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-intel-500 focus:border-intel-500 outline-none transition-shadow"
           />
         </div>
         <div>
@@ -64,7 +64,7 @@ export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalPr
             value={host}
             onChange={(e) => setHost(e.target.value)}
             placeholder="e.g. 192.168.1.100 or node.example.com"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-shadow"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-intel-500 focus:border-intel-500 outline-none transition-shadow"
           />
         </div>
         <div>
@@ -74,7 +74,7 @@ export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalPr
             value={user}
             onChange={(e) => setUser(e.target.value)}
             placeholder="ubuntu"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-shadow"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-intel-500 focus:border-intel-500 outline-none transition-shadow"
           />
         </div>
         <div>
@@ -84,7 +84,7 @@ export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalPr
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="SSH password"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-shadow"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-intel-500 focus:border-intel-500 outline-none transition-shadow"
           />
           <p className="mt-1 text-xs text-gray-400">
             Used for SSH authentication and sudo operations
@@ -108,7 +108,7 @@ export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalPr
           <button
             type="submit"
             disabled={!isValid || loading}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
             {loading ? 'Verifying...' : 'Add & Verify'}

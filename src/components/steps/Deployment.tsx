@@ -154,7 +154,7 @@ export default function Deployment({ data, update, onDeployComplete }: Deploymen
         </p>
         <button
           onClick={() => onDeployComplete?.()}
-          className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors"
+          className="mt-6 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 transition-colors"
         >
           Go to Dashboard
           <ExternalLink size={14} />
@@ -189,7 +189,7 @@ export default function Deployment({ data, update, onDeployComplete }: Deploymen
                     {roles.map((r) => (
                       <span
                         key={r}
-                        className="px-2 py-0.5 bg-teal-50 text-teal-700 text-xs font-medium rounded"
+                        className="px-2 py-0.5 bg-intel-50 text-intel-700 text-xs font-medium rounded"
                       >
                         {displayNameForRole(r)}
                       </span>
@@ -258,7 +258,7 @@ export default function Deployment({ data, update, onDeployComplete }: Deploymen
       {!deployStarted && (
         <button
           onClick={startDeployment}
-          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 transition-colors shadow-sm"
         >
           <Play size={16} />
           Start Deployment
@@ -276,7 +276,7 @@ export default function Deployment({ data, update, onDeployComplete }: Deploymen
           </div>
           <button
             onClick={() => onDeployComplete?.()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 transition-colors"
           >
             Go to Dashboard
             <ExternalLink size={14} />

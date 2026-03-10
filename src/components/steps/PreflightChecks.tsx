@@ -124,7 +124,7 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
 
       {loading && results.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <Loader2 size={28} className="text-teal-600 animate-spin" />
+          <Loader2 size={28} className="text-intel-600 animate-spin" />
           <p className="text-sm text-gray-500">Running preflight checks...</p>
         </div>
       ) : (
@@ -136,7 +136,7 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
                 <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      passed === total ? 'bg-emerald-500' : 'bg-teal-500'
+                      passed === total ? 'bg-emerald-500' : 'bg-intel-500'
                     }`}
                     style={{ width: total > 0 ? `${(passed / total) * 100}%` : '0%' }}
                   />

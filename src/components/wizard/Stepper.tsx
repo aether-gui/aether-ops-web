@@ -24,9 +24,9 @@ export default function Stepper({ steps, currentStep }: StepperProps) {
               <div
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
                   isComplete
-                    ? 'bg-teal-600 text-white'
+                    ? 'bg-intel-600 text-white'
                     : isCurrent
-                      ? 'bg-teal-600 text-white ring-4 ring-teal-100'
+                      ? 'bg-intel-600 text-white ring-4 ring-intel-100'
                       : 'bg-gray-200 text-gray-500'
                 }`}
               >
@@ -46,7 +46,7 @@ export default function Stepper({ steps, currentStep }: StepperProps) {
             {i < steps.length - 1 && (
               <div
                 className={`w-16 sm:w-24 h-0.5 mx-2 mt-[-18px] transition-colors duration-300 ${
-                  i < currentStep ? 'bg-teal-600' : 'bg-gray-200'
+                  i < currentStep ? 'bg-intel-600' : 'bg-gray-200'
                 }`}
               />
             )}

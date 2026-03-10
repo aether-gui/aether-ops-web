@@ -21,7 +21,7 @@ function StringField({ label, path, value, onChange }: FieldProps & { value: str
         type="text"
         value={value}
         onChange={(e) => onChange(path, e.target.value)}
-        className="w-52 text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:border-teal-400 focus:ring-1 focus:ring-teal-200 outline-none font-mono text-right"
+        className="w-52 text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:border-intel-400 focus:ring-1 focus:ring-intel-200 outline-none font-mono text-right"
         spellCheck={false}
       />
     </div>
@@ -38,7 +38,7 @@ function NumberField({ label, path, value, onChange }: FieldProps & { value: num
         type="number"
         value={value}
         onChange={(e) => onChange(path, Number(e.target.value))}
-        className="w-32 text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:border-teal-400 focus:ring-1 focus:ring-teal-200 outline-none text-right"
+        className="w-32 text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:border-intel-400 focus:ring-1 focus:ring-intel-200 outline-none text-right"
       />
     </div>
   );
@@ -55,8 +55,8 @@ function BooleanField({ label, path, value, onChange }: FieldProps & { value: bo
         role="switch"
         aria-checked={value}
         onClick={() => onChange(path, !value)}
-        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-1 ${
-          value ? 'bg-teal-600' : 'bg-gray-200'
+        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-intel-400 focus:ring-offset-1 ${
+          value ? 'bg-intel-600' : 'bg-gray-200'
         }`}
       >
         <span
@@ -95,7 +95,7 @@ function ArrayField({ label, path, value, onChange }: FieldProps & { value: unkn
         className={`w-full text-xs font-mono px-2.5 py-2 border rounded-md focus:ring-1 outline-none resize-y transition-colors ${
           hasError
             ? 'border-red-300 focus:border-red-400 focus:ring-red-200'
-            : 'border-gray-200 focus:border-teal-400 focus:ring-teal-200'
+            : 'border-gray-200 focus:border-intel-400 focus:ring-intel-200'
         }`}
       />
       {hasError && <p className="text-xs text-red-500 mt-1">Invalid JSON</p>}

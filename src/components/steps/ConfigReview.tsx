@@ -72,7 +72,7 @@ function SectionCard({ sectionKey, label, sectionData, onChange, defaultsApplied
         <span className="text-sm font-semibold text-gray-800">{label}</span>
         <span className="text-[10px] font-mono text-gray-400 ml-1">{sectionKey}</span>
         {sectionDefaults.length > 0 && (
-          <span className="ml-auto px-2 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-medium rounded-full">
+          <span className="ml-auto px-2 py-0.5 bg-intel-50 text-intel-700 text-[10px] font-medium rounded-full">
             {sectionDefaults.length} auto-filled
           </span>
         )}
@@ -105,34 +105,34 @@ function AppliedDefaultsPanel({ applied }: AppliedDefaultsPanelProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="border border-teal-200 rounded-xl overflow-hidden bg-teal-50/40">
+    <div className="border border-intel-200 rounded-xl overflow-hidden bg-intel-50/40">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-teal-50/60 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-intel-50/60 transition-colors"
       >
-        <Info size={15} className="text-teal-600 flex-shrink-0" />
-        <span className="text-sm font-medium text-teal-800">
+        <Info size={15} className="text-intel-600 flex-shrink-0" />
+        <span className="text-sm font-medium text-intel-800">
           {applied.length} default{applied.length !== 1 ? 's' : ''} applied from your node configuration
         </span>
         {open ? (
-          <ChevronDown size={14} className="ml-auto text-teal-500" />
+          <ChevronDown size={14} className="ml-auto text-intel-500" />
         ) : (
-          <ChevronRight size={14} className="ml-auto text-teal-500" />
+          <ChevronRight size={14} className="ml-auto text-intel-500" />
         )}
       </button>
       {open && (
         <div className="px-4 pb-3 space-y-1.5">
           {applied.map((item, idx) => (
             <div key={idx} className="flex items-start gap-3 text-xs">
-              <span className="font-mono text-teal-700 font-medium flex-shrink-0 min-w-[140px]">
+              <span className="font-mono text-intel-700 font-medium flex-shrink-0 min-w-[140px]">
                 {item.field}
               </span>
               <span className="font-mono text-gray-700 font-semibold flex-shrink-0">{item.value}</span>
               <span className="text-gray-500 truncate">
                 — {item.explanation}
                 {item.source_node && (
-                  <span className="text-teal-600 ml-1">({item.source_node})</span>
+                  <span className="text-intel-600 ml-1">({item.source_node})</span>
                 )}
               </span>
             </div>
@@ -208,7 +208,7 @@ export default function ConfigReview({ data, update }: ConfigReviewProps) {
 
       {data.defaultsLoading && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-200 mb-5">
-          <Loader2 size={18} className="text-teal-600 animate-spin flex-shrink-0" />
+          <Loader2 size={18} className="text-intel-600 animate-spin flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-gray-800">Discovering network configuration...</p>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -260,7 +260,7 @@ export default function ConfigReview({ data, update }: ConfigReviewProps) {
             <button
               onClick={handleSave}
               disabled={!isDirty || saveStatus === 'saving'}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
               {saveStatus === 'saving' ? (
                 <Loader2 size={14} className="animate-spin" />

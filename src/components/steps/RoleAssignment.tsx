@@ -96,7 +96,7 @@ export default function RoleAssignment({ data, update }: RoleAssignmentProps) {
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-gray-900">{node.name}</p>
                     {isLocalhost(node) && (
-                      <span className="px-1.5 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-medium rounded">
+                      <span className="px-1.5 py-0.5 bg-intel-50 text-intel-700 text-[10px] font-medium rounded">
                         LOCAL
                       </span>
                     )}
@@ -108,7 +108,7 @@ export default function RoleAssignment({ data, update }: RoleAssignmentProps) {
                     {nodeRoles.map((r) => (
                       <span
                         key={r}
-                        className="px-2 py-0.5 bg-teal-50 text-teal-700 text-xs font-medium rounded-md"
+                        className="px-2 py-0.5 bg-intel-50 text-intel-700 text-xs font-medium rounded-md"
                       >
                         {displayNameForRole(r)}
                       </span>
@@ -129,13 +129,13 @@ export default function RoleAssignment({ data, update }: RoleAssignmentProps) {
                         onClick={() => toggleRole(node, role.apiValue)}
                         className={`flex flex-col items-start p-3 rounded-lg border text-left transition-all ${
                           active
-                            ? 'border-teal-300 bg-teal-50 shadow-sm'
+                            ? 'border-intel-300 bg-intel-50 shadow-sm'
                             : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                         }`}
                       >
                         <span
                           className={`text-sm font-medium ${
-                            active ? 'text-teal-700' : 'text-gray-700'
+                            active ? 'text-intel-700' : 'text-gray-700'
                           }`}
                         >
                           {role.displayName}
