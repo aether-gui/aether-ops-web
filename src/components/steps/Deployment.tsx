@@ -22,9 +22,10 @@ interface DeploymentProps {
   data: WizardData;
   update: (partial: Partial<WizardData>) => void;
   onDeployComplete?: () => void;
+  activeTaskId?: string | null;
 }
 
-export default function Deployment({ data, update, onDeployComplete }: DeploymentProps) {
+export default function Deployment({ data, update, onDeployComplete, activeTaskId = null }: DeploymentProps) {
   const excluded = useMemo(() => new Set(data.excludedNodeIds), [data.excludedNodeIds]);
   const includedNodes = useMemo(
     () => data.nodes.filter((n) => !excluded.has(n.id)),
@@ -50,6 +51,17 @@ export default function Deployment({ data, update, onDeployComplete }: Deploymen
   const runningRef = useRef(false);
 
   const { task, error: taskError, reset: resetPoller } = useTaskPoller(currentTaskId);
+
+  useEffect(() => {
+    if (activeTaskId) {
+      setDeployStarted(true);
+      setCurrentTaskId(activeTaskId);
+      runningRef.current = true;
+      setShowMonitor(true);
+      update({ deploymentStarted: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!task || !runningRef.current) return;

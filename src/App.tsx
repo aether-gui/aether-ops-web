@@ -42,12 +42,18 @@ function AppRoutes() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'ready'>('loading');
   const [initialStep, setInitialStep] = useState(0);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     getWizardState()
       .then((state) => {
         if (!state.completed) {
-          setInitialStep(getFirstIncompleteStep(state));
+          let step = getFirstIncompleteStep(state);
+          if (state.active_task) {
+            step = 4;
+            setActiveTaskId(state.active_task.id);
+          }
+          setInitialStep(step);
           navigate('/setup', { replace: true });
         }
         setStatus('ready');
@@ -70,7 +76,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPlaceholder />} />
-      <Route path="/setup" element={<SetupWizard initialStep={initialStep} />} />
+      <Route path="/setup" element={<SetupWizard initialStep={initialStep} activeTaskId={activeTaskId} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

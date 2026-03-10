@@ -24,9 +24,10 @@ const STEPS: StepDef[] = [
 
 interface SetupWizardProps {
   initialStep?: number;
+  activeTaskId?: string | null;
 }
 
-export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
+export default function SetupWizard({ initialStep = 0, activeTaskId = null }: SetupWizardProps) {
   const health = useHealthCheck();
   const navigate = useNavigate();
   const { data, update, setStep } = useWizardState(initialStep);
@@ -93,7 +94,7 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
       } else if (currentStep === 2) {
         await markStepComplete('roles');
       } else if (currentStep === 3) {
-        try { await markStepComplete('deployment'); } catch { /* no config step in backend */ }
+        await markStepComplete('config');
       }
     } catch {
       // proceed even if marking fails
@@ -129,7 +130,6 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
     try {
       await markStepComplete('deployment');
     } catch {
-      // proceed to dashboard regardless
     }
     navigate('/', { replace: true });
   }, [navigate]);
@@ -145,7 +145,7 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
       case 3:
         return <ConfigReview data={data} update={update} />;
       case 4:
-        return <Deployment data={data} update={update} onDeployComplete={handleDeployComplete} />;
+        return <Deployment data={data} update={update} onDeployComplete={handleDeployComplete} activeTaskId={activeTaskId} />;
       default:
         return null;
     }
