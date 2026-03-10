@@ -43,6 +43,7 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
   const runChecks = useCallback(async () => {
     setLoading(true);
     setFixMessages({});
+    update({ preflightPassed: false });
     try {
       const summary = await runPreflightChecks();
       const allRequiredPassed = summary.results.every(
@@ -63,9 +64,7 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
   }, [update]);
 
   useEffect(() => {
-    if (data.preflightResults.length === 0) {
-      runChecks();
-    }
+    runChecks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
