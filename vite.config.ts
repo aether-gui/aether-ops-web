@@ -1,5 +1,14 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { execSync } from 'child_process';
+
+function getGitCommitHash(): string {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'dev';
+  }
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -9,6 +18,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     optimizeDeps: {
       exclude: ['lucide-react'],
+    },
+    define: {
+      __APP_VERSION__: JSON.stringify(getGitCommitHash()),
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     },
     server: {
       proxy: {

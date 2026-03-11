@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import SetupWizard from './components/wizard/SetupWizard';
 import AlertBanner from './components/shared/AlertBanner';
+import VersionIndicator from './components/shared/VersionIndicator';
 import { useHealthCheck } from './hooks/useHealthCheck';
 import { getWizardState, getFirstIncompleteStep } from './api/wizard';
 import { Loader2 } from 'lucide-react';
@@ -86,6 +87,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppRoutes />
+      <VersionIndicator />
     </BrowserRouter>
   );
 }
