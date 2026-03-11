@@ -16,7 +16,7 @@ interface AddNodeModalProps {
 export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalProps) {
   const [name, setName] = useState('');
   const [host, setHost] = useState('');
-  const [user, setUser] = useState('ubuntu');
+  const [user, setUser] = useState('aether');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalPr
       await onSubmit({ name: name.trim(), host: host.trim(), user: user.trim(), password });
       setName('');
       setHost('');
-      setUser('ubuntu');
+      setUser('aether');
       setPassword('');
       onClose();
     } catch (err) {
@@ -73,7 +73,7 @@ export default function AddNodeModal({ open, onClose, onSubmit }: AddNodeModalPr
             type="text"
             value={user}
             onChange={(e) => setUser(e.target.value)}
-            placeholder="ubuntu"
+            placeholder="aether"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-intel-500 focus:border-intel-500 outline-none transition-shadow"
           />
         </div>
