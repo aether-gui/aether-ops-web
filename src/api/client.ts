@@ -1,6 +1,6 @@
 import type { ApiError } from '../types/api';
 
-const BASE_URL = `${import.meta.env.VITE_BACKEND_URL ?? 'http://127.0.0.1:8186'}/api/v1`;
+const BASE_URL = `${import.meta.env.VITE_BACKEND_URL ?? window.location.origin}/api/v1`;
 
 export class ApiRequestError extends Error {
   status: number;
