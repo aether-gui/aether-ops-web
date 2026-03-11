@@ -18,14 +18,20 @@ import TaskMonitorModal from './TaskMonitorModal';
 
 type StepStatus = 'pending' | 'running' | 'succeeded' | 'failed';
 
+interface ActiveTask {
+  id: string;
+  component: string;
+  action: string;
+}
+
 interface DeploymentProps {
   data: WizardData;
   update: (partial: Partial<WizardData>) => void;
   onDeployComplete?: () => void;
-  activeTaskId?: string | null;
+  activeTask?: ActiveTask | null;
 }
 
-export default function Deployment({ data, update, onDeployComplete, activeTaskId = null }: DeploymentProps) {
+export default function Deployment({ data, update, onDeployComplete, activeTask = null }: DeploymentProps) {
   const excluded = useMemo(() => new Set(data.excludedNodeIds), [data.excludedNodeIds]);
   const includedNodes = useMemo(
     () => data.nodes.filter((n) => !excluded.has(n.id)),
@@ -53,12 +59,24 @@ export default function Deployment({ data, update, onDeployComplete, activeTaskI
   const { task, error: taskError, reset: resetPoller } = useTaskPoller(currentTaskId);
 
   useEffect(() => {
-    if (activeTaskId) {
+    if (activeTask) {
+      const idx = deploySteps.findIndex(
+        (s) => s.component === activeTask.component && s.action === activeTask.action
+      );
       setDeployStarted(true);
-      setCurrentTaskId(activeTaskId);
+      setCurrentTaskId(activeTask.id);
       runningRef.current = true;
-      setShowMonitor(true);
       update({ deploymentStarted: true });
+      if (idx >= 0) {
+        setCurrentStepIdx(idx);
+        setMonitorLabel(deploySteps[idx].label);
+        setStepStatuses((prev) => {
+          const next = [...prev];
+          for (let i = 0; i < idx; i++) next[i] = 'succeeded';
+          next[idx] = 'running';
+          return next;
+        });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
