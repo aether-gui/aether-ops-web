@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import SetupWizard from './components/wizard/SetupWizard';
 import AlertBanner from './components/shared/AlertBanner';
+import DeploymentBanner from './components/shared/DeploymentBanner';
 import VersionIndicator from './components/shared/VersionIndicator';
 import { useHealthCheck } from './hooks/useHealthCheck';
 import { getWizardState, getFirstIncompleteStep } from './api/wizard';
@@ -29,6 +30,7 @@ function DashboardPlaceholder() {
       </header>
 
       <AlertBanner health={health} />
+      <DeploymentBanner />
 
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
@@ -43,17 +45,12 @@ function AppRoutes() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'ready'>('loading');
   const [initialStep, setInitialStep] = useState(0);
-  const [activeTask, setActiveTask] = useState<{ id: string; component: string; action: string } | null>(null);
 
   useEffect(() => {
     getWizardState()
       .then((state) => {
-        if (!state.completed) {
-          let step = getFirstIncompleteStep(state);
-          if (state.active_task) {
-            step = 4;
-            setActiveTask({ id: state.active_task.id, component: state.active_task.component, action: state.active_task.action });
-          }
+        if (!state.completed && !state.active_task) {
+          const step = getFirstIncompleteStep(state);
           setInitialStep(step);
           navigate('/setup', { replace: true });
         }
@@ -77,7 +74,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPlaceholder />} />
-      <Route path="/setup" element={<SetupWizard initialStep={initialStep} activeTask={activeTask} />} />
+      <Route path="/setup" element={<SetupWizard initialStep={initialStep} />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
