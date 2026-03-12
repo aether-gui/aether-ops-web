@@ -8,6 +8,7 @@ interface WizardNavProps {
   onContinue: () => void;
   continueLabel?: string;
   loading?: boolean;
+  hideContinue?: boolean;
 }
 
 export default function WizardNav({
@@ -18,6 +19,7 @@ export default function WizardNav({
   onContinue,
   continueLabel,
   loading,
+  hideContinue,
 }: WizardNavProps) {
   const isLast = currentStep === totalSteps - 1;
   const label = continueLabel ?? (isLast ? 'Deploy' : 'Continue');
@@ -32,19 +34,21 @@ export default function WizardNav({
         <ChevronLeft size={16} />
         Back
       </button>
-      <button
-        onClick={onContinue}
-        disabled={!canContinue || loading}
-        className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
-      >
-        {loading ? (
-          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        ) : isLast ? (
-          <Rocket size={16} />
-        ) : null}
-        {label}
-        {!isLast && !loading && <ChevronRight size={16} />}
-      </button>
+      {!hideContinue && (
+        <button
+          onClick={onContinue}
+          disabled={!canContinue || loading}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+        >
+          {loading ? (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : isLast ? (
+            <Rocket size={16} />
+          ) : null}
+          {label}
+          {!isLast && !loading && <ChevronRight size={16} />}
+        </button>
+      )}
     </div>
   );
 }
