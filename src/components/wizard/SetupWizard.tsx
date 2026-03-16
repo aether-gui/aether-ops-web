@@ -235,11 +235,20 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
               canContinue={canContinue}
               onBack={handleBack}
               onContinue={handleContinue}
-              onSkip={handleSkipSetup}
               loading={continueLoading}
               hideContinue={currentStep === STEPS.length - 1}
             />
           </div>
+          {currentStep !== STEPS.length - 1 && (
+            <div className="mt-3 text-center">
+              <button
+                onClick={handleSkipSetup}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                Skip setup and go to dashboard
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

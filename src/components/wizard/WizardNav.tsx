@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Rocket, SkipForward } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Rocket } from 'lucide-react';
 
 interface WizardNavProps {
   currentStep: number;
@@ -6,7 +6,6 @@ interface WizardNavProps {
   canContinue: boolean;
   onBack: () => void;
   onContinue: () => void;
-  onSkip?: () => void;
   continueLabel?: string;
   loading?: boolean;
   hideContinue?: boolean;
@@ -18,7 +17,6 @@ export default function WizardNav({
   canContinue,
   onBack,
   onContinue,
-  onSkip,
   continueLabel,
   loading,
   hideContinue,
@@ -28,25 +26,14 @@ export default function WizardNav({
 
   return (
     <div className="flex items-center justify-between border-t border-gray-100 px-8 py-4 bg-white">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onBack}
-          disabled={currentStep === 0}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronLeft size={16} />
-          Back
-        </button>
-        {onSkip && !hideContinue && (
-          <button
-            onClick={onSkip}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors"
-          >
-            <SkipForward size={16} />
-            Skip Setup
-          </button>
-        )}
-      </div>
+      <button
+        onClick={onBack}
+        disabled={currentStep === 0}
+        className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronLeft size={16} />
+        Back
+      </button>
       {!hideContinue && (
         <button
           onClick={onContinue}
