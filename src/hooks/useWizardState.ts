@@ -3,6 +3,7 @@ import type { ManagedNode, CheckResult, ConfigDefaultApplied } from '../types/ap
 
 export interface WizardData {
   currentStep: number;
+  deploymentName: string;
   nodes: ManagedNode[];
   nodeVerification: Record<string, 'pending' | 'verified' | 'failed'>;
   excludedNodeIds: string[];
@@ -19,6 +20,7 @@ export interface WizardData {
 function defaultState(initialStep: number): WizardData {
   return {
     currentStep: initialStep,
+    deploymentName: '',
     nodes: [],
     nodeVerification: {},
     excludedNodeIds: [],

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Stepper, { type StepDef } from './Stepper';
 import WizardNav from './WizardNav';
+import DeploymentSetup from '../steps/DeploymentSetup';
 import NodeSelection from '../steps/NodeSelection';
 import PreflightChecks from '../steps/PreflightChecks';
 import RoleAssignment from '../steps/RoleAssignment';
@@ -16,6 +17,7 @@ import { markStepComplete } from '../../api/wizard';
 import { getDeployStepsForRoles } from '../../config/deployOrder';
 
 const STEPS: StepDef[] = [
+  { label: 'Deployment', description: 'Create deployment' },
   { label: 'Nodes', description: 'Select hosts' },
   { label: 'Preflight', description: 'Check readiness' },
   { label: 'Roles', description: 'Assign roles' },
@@ -71,22 +73,24 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
   const canContinue = useMemo(() => {
     switch (currentStep) {
       case 0:
+        return data.deploymentName.trim().length >= 3;
+      case 1:
         return includedNodes.length > 0;
-      case 1: {
+      case 2: {
         const allIncludedNodesVerified = includedNodes.length > 0 &&
           includedNodes.every((n) => data.nodeVerification[n.id] === 'verified');
         return data.preflightPassed && allIncludedNodesVerified;
       }
-      case 2:
-        return true;
       case 3:
-        return !data.defaultsLoading;
+        return true;
       case 4:
+        return !data.defaultsLoading;
+      case 5:
         return false;
       default:
         return false;
     }
-  }, [currentStep, includedNodes, data.preflightPassed, data.defaultsLoading, data.nodeVerification]);
+  }, [currentStep, includedNodes, data.preflightPassed, data.defaultsLoading, data.nodeVerification, data.deploymentName]);
 
   const handleStepClick = useCallback(
     (step: number) => {
@@ -105,13 +109,15 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
     setContinueLoading(true);
     try {
       if (currentStep === 0) {
+        await markStepComplete('deployment');
+      } else if (currentStep === 1) {
         try { await syncInventory(); } catch { /* continue anyway */ }
         await markStepComplete('nodes');
-      } else if (currentStep === 1) {
-        await markStepComplete('preflight');
       } else if (currentStep === 2) {
-        await markStepComplete('roles');
+        await markStepComplete('preflight');
       } else if (currentStep === 3) {
+        await markStepComplete('roles');
+      } else if (currentStep === 4) {
         await markStepComplete('config');
       }
     } catch {
@@ -122,7 +128,7 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
 
     setStep(currentStep + 1);
 
-    if (currentStep === 2) {
+    if (currentStep === 3) {
       update({ defaultsLoading: true, configDefaultsErrors: [], configDefaultsApplied: [] });
       applyConfigDefaults()
         .then((result) => {
@@ -160,20 +166,22 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
 
     try { await markStepComplete('deployment'); } catch { /* best effort */ }
 
-    navigate('/', { replace: true });
+    navigate('/dashboard', { replace: true });
   }, [deploySteps, navigate, update]);
 
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return <NodeSelection data={data} update={update} />;
+        return <DeploymentSetup data={data} update={update} />;
       case 1:
-        return <PreflightChecks data={data} update={update} />;
+        return <NodeSelection data={data} update={update} />;
       case 2:
-        return <RoleAssignment data={data} update={update} />;
+        return <PreflightChecks data={data} update={update} />;
       case 3:
-        return <ConfigReview data={data} update={update} />;
+        return <RoleAssignment data={data} update={update} />;
       case 4:
+        return <ConfigReview data={data} update={update} />;
+      case 5:
         return <Deployment data={data} deploySteps={deploySteps} onStartDeploy={handleStartDeploy} />;
       default:
         return null;
