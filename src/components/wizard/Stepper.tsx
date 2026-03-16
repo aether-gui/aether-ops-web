@@ -43,18 +43,13 @@ export default function Stepper({ steps, currentStep, onStepClick }: StepperProp
                   {isComplete ? <Check size={16} strokeWidth={3} /> : i + 1}
                 </div>
               )}
-              <div className="text-center">
-                <p
-                  className={`text-xs font-medium ${
-                    isFuture ? 'text-gray-400' : 'text-gray-800'
-                  }`}
-                >
-                  {step.label}
-                </p>
-                {isCurrent && (
-                  <p className="text-[10px] text-gray-400 hidden sm:block">{step.description}</p>
-                )}
-              </div>
+              <p
+                className={`text-xs font-medium text-center ${
+                  isFuture ? 'text-gray-400' : 'text-gray-800'
+                }`}
+              >
+                {step.label}
+              </p>
             </div>
             {i < steps.length - 1 && (
               <div
