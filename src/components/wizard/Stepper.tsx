@@ -51,7 +51,9 @@ export default function Stepper({ steps, currentStep, onStepClick }: StepperProp
                 >
                   {step.label}
                 </p>
-                <p className="text-[10px] text-gray-400 hidden sm:block">{step.description}</p>
+                {isCurrent && (
+                  <p className="text-[10px] text-gray-400 hidden sm:block">{step.description}</p>
+                )}
               </div>
             </div>
             {i < steps.length - 1 && (
