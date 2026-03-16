@@ -132,7 +132,7 @@ export default function Overview() {
                     <span className="text-sm font-medium text-gray-900">{systemInfo.cpu.physical_cores} physical / {systemInfo.cpu.logical_cores} logical</span>
                   </div>
                 )}
-                {systemInfo.memory && (
+                {systemInfo.memory && systemInfo.memory.physical_usage_percent !== undefined && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Server className="w-4 h-4 text-gray-400" />

@@ -79,7 +79,7 @@ export default function StatusInfrastructure() {
                 <div>
                   <p className="text-xs text-gray-500 uppercase font-medium">Memory</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {systemInfo.memory ? `${systemInfo.memory.physical_usage_percent.toFixed(1)}%` : 'N/A'}
+                    {systemInfo.memory?.physical_usage_percent !== undefined ? `${systemInfo.memory.physical_usage_percent.toFixed(1)}%` : 'N/A'}
                   </p>
                 </div>
               </div>
@@ -165,7 +165,7 @@ export default function StatusInfrastructure() {
                 </div>
               )}
 
-              {systemInfo.memory && (
+              {systemInfo.memory && systemInfo.memory.physical_usage_percent !== undefined && (
                 <div className="border border-gray-200 rounded-lg p-5">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Memory</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -184,7 +184,7 @@ export default function StatusInfrastructure() {
                       </div>
                       <p className="text-xs text-gray-500 mt-1">{systemInfo.memory.physical_usage_percent.toFixed(1)}% used</p>
                     </div>
-                    {systemInfo.memory.swap_total_bytes > 0 && (
+                    {systemInfo.memory.swap_total_bytes > 0 && systemInfo.memory.swap_usage_percent !== undefined && (
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm text-gray-600">Swap Memory</span>
