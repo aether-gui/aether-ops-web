@@ -1,0 +1,650 @@
+====================================================================================================
+AETHER WEBUI API - COMPLETE ENDPOINT REFERENCE
+====================================================================================================
+
+API Title: Aether WebUI API
+API Version: 0.0.0
+OpenAPI Version: 3.1.0
+Total Endpoints: 33
+
+
+====================================================================================================
+System Status & Metadata
+====================================================================================================
+
+/api/v1/meta/build
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get build environment information
+  Description: Returns the Go toolchain version, target OS, and architecture used to compile the server binary.
+
+  Responses:
+    200: OK
+      Schema: BuildInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/meta/config
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get active application configuration
+  Description: Returns non-secret configuration values including listen address, storage paths, feature flags, and schema version.
+
+  Responses:
+    200: OK
+      Schema: ConfigInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/meta/providers
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get registered provider statuses
+  Description: Returns the name, enabled/running state, and endpoint count for each registered provider.
+
+  Responses:
+    200: OK
+      Schema: ProvidersInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/meta/runtime
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get process runtime information
+  Description: Returns the server's PID, running user/group, binary path, start time, and uptime.
+
+  Responses:
+    200: OK
+      Schema: RuntimeInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/meta/store
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get store health and metadata
+  Description: Returns store engine, path, file size, schema version, and live diagnostic results (ping, write, read, delete).
+
+  Responses:
+    200: OK
+      Schema: StoreInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/meta/version
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get build and version information
+  Description: Returns the server's version string, build date, git branch, and commit hash. Useful for diagnostics, compatibility checks, and deployment verification.
+
+  Responses:
+    200: OK
+      Schema: VersionInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+====================================================================================================
+System Resources (CPU, Memory, Disk)
+====================================================================================================
+
+/api/v1/system/cpu
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get CPU information
+  Description: Returns CPU model, core counts, frequency, cache, and flags.
+
+  Responses:
+    200: OK
+      Schema: CPUInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/system/disks
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get disk information
+  Description: Returns partition list with usage details.
+
+  Responses:
+    200: OK
+      Schema: DiskInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/system/memory
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get memory information
+  Description: Returns physical and swap memory usage.
+
+  Responses:
+    200: OK
+      Schema: MemoryInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/system/metrics
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Query system metrics
+  Description: Returns time-series metric data with optional time range, label filtering, and aggregation.
+
+  Parameters:
+    • metric (query) - REQUIRED
+      Metric name to query
+      Type: string
+    • from (query) - OPTIONAL
+      Start time (RFC 3339)
+      Type: string
+    • to (query) - OPTIONAL
+      End time (RFC 3339)
+      Type: string
+    • labels (query) - OPTIONAL
+      Comma-separated key=val label filters
+      Type: string
+    • aggregation (query) - OPTIONAL
+      Time bucket aggregation
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: MetricsResult (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/system/os
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get OS information
+  Description: Returns hostname, OS, platform, kernel version, arch, and uptime.
+
+  Responses:
+    200: OK
+      Schema: OSInfo (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+====================================================================================================
+Network Information
+====================================================================================================
+
+/api/v1/system/network/config
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get network configuration
+  Description: Returns DNS servers and search domains from resolv.conf.
+
+  Responses:
+    200: OK
+      Schema: NetworkConfig (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/system/network/interfaces
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get network interfaces
+  Description: Returns network interface details including addresses, MAC, MTU, and flags.
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/system/network/ports
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get listening ports
+  Description: Returns TCP/UDP ports in LISTEN state with process info.
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+====================================================================================================
+OnRamp Component Management
+====================================================================================================
+
+/api/v1/onramp/components
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: List OnRamp components
+  Description: Returns all available OnRamp components and their actions.
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/components/{component}
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get OnRamp component
+  Description: Returns a single OnRamp component by name.
+
+  Parameters:
+    • component (path) - REQUIRED
+      Component name
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: Component (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/components/{component}/{action}
+----------------------------------------------------------------------------------------------------
+
+  Method: POST
+  Summary: Execute component action
+  Description: Runs a make target for the specified component and action.
+
+  Parameters:
+    • component (path) - REQUIRED
+      Component name
+      Type: string
+    • action (path) - REQUIRED
+      Action name
+      Type: string
+
+  Request Body:
+    Content-Type: application/json
+    Schema: ExecuteActionBody
+
+  Responses:
+    200: OK
+      Schema: OnRampTask (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+====================================================================================================
+OnRamp Actions & State
+====================================================================================================
+
+/api/v1/onramp/actions
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: List action history
+  Description: Returns paginated action execution history, filterable by component, action, and status.
+
+  Parameters:
+    • component (query) - OPTIONAL
+      Filter by component name
+      Type: string
+    • action (query) - OPTIONAL
+      Filter by action name
+      Type: string
+    • status (query) - OPTIONAL
+      Filter by status
+      Type: string
+    • limit (query) - OPTIONAL
+      Max results
+      Type: integer
+    • offset (query) - OPTIONAL
+      Pagination offset
+      Type: integer
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/actions/{id}
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get action detail
+  Description: Returns a single action execution record by ID.
+
+  Parameters:
+    • id (path) - REQUIRED
+      Action ID
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: ActionHistoryItem (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/state
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: List component states
+  Description: Returns the current deployment state of all components. Components with no history default to not_installed.
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/state/{component}
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get component state
+  Description: Returns the current deployment state of a single component.
+
+  Parameters:
+    • component (path) - REQUIRED
+      Component name
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: ComponentStateItem (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/tasks
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: List OnRamp tasks
+  Description: Returns recent make target executions and their status.
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/tasks/{id}
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get OnRamp task
+  Description: Returns details and output for a specific task.
+
+  Parameters:
+    • id (path) - REQUIRED
+      Task ID
+      Type: string
+    • offset (query) - OPTIONAL
+      Byte offset for incremental output reads
+      Type: integer
+
+  Responses:
+    200: OK
+      Schema: OnRampTask (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+====================================================================================================
+OnRamp Configuration
+====================================================================================================
+
+/api/v1/onramp/config
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get OnRamp configuration
+  Description: Reads vars/main.yml and returns the parsed configuration.
+
+  Responses:
+    200: OK
+      Schema: OnRampConfig (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+  Method: PATCH
+  Summary: Patch OnRamp configuration
+  Description: Merges the provided fields into vars/main.yml, preserving untouched values.
+
+  Request Body:
+    Content-Type: application/json
+    Schema: OnRampConfig
+    Content-Type: application/octet-stream
+
+  Responses:
+    200: OK
+      Schema: OnRampConfig (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/config/profiles
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: List OnRamp config profiles
+  Description: Lists available vars profiles (main-*.yml files).
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/config/profiles/{name}
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get OnRamp config profile
+  Description: Reads a specific vars profile and returns its configuration.
+
+  Parameters:
+    • name (path) - REQUIRED
+      Profile name
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: OnRampConfig (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/config/profiles/{name}/activate
+----------------------------------------------------------------------------------------------------
+
+  Method: POST
+  Summary: Activate OnRamp config profile
+  Description: Copies the named profile to vars/main.yml, making it active.
+
+  Parameters:
+    • name (path) - REQUIRED
+      Profile name
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: ProfileActivateOutputBody (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/inventory
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get Ansible inventory
+  Description: Parses the current hosts.ini and returns structured inventory data.
+
+  Responses:
+    200: OK
+      Schema: InventoryData (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/inventory/sync
+----------------------------------------------------------------------------------------------------
+
+  Method: POST
+  Summary: Sync inventory to hosts.ini
+  Description: Generates hosts.ini from managed nodes in the database and writes it to disk.
+
+  Responses:
+    200: OK
+      Schema: InventorySyncOutputBody (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/repo
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: Get OnRamp repo status
+  Description: Returns clone status, current commit, branch, tag, and dirty state of the OnRamp repository.
+
+  Responses:
+    200: OK
+      Schema: RepoStatus (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/onramp/repo/refresh
+----------------------------------------------------------------------------------------------------
+
+  Method: POST
+  Summary: Refresh OnRamp repo
+  Description: Clones the repo if missing, checks out the pinned version, and validates the directory.
+
+  Responses:
+    200: OK
+      Schema: RepoStatus (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+====================================================================================================
+Node Management
+====================================================================================================
+
+/api/v1/nodes
+----------------------------------------------------------------------------------------------------
+
+  Method: GET
+  Summary: List all nodes
+  Description: Returns all managed cluster nodes with role assignments.
+
+  Responses:
+    200: OK
+      Type: array | null (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+  Method: POST
+  Summary: Create a node
+  Description: Creates a new node with optional roles and credentials.
+
+  Request Body:
+    Content-Type: application/json
+    Schema: NodeCreateInputBody
+
+  Responses:
+    200: OK
+      Schema: ManagedNode (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+/api/v1/nodes/{id}
+----------------------------------------------------------------------------------------------------
+
+  Method: DELETE
+  Summary: Delete a node
+  Description: Deletes a node and its role assignments.
+
+  Parameters:
+    • id (path) - REQUIRED
+      Node ID
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: NodeDeleteOutputBody (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+  Method: GET
+  Summary: Get a node
+  Description: Returns a single node with secret-presence flags.
+
+  Parameters:
+    • id (path) - REQUIRED
+      Node ID
+      Type: string
+
+  Responses:
+    200: OK
+      Schema: ManagedNode (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
+
+  Method: PUT
+  Summary: Update a node
+  Description: Partial update — merges non-nil fields; roles replaces entire set when provided.
+
+  Parameters:
+    • id (path) - REQUIRED
+      Node ID
+      Type: string
+
+  Request Body:
+    Content-Type: application/json
+    Schema: NodeUpdateInputBody
+
+  Responses:
+    200: OK
+      Schema: ManagedNode (application/json)
+    default: Error
+      Schema: ErrorModel (application/problem+json)
+
