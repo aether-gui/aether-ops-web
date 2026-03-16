@@ -21,6 +21,7 @@ function AppRoutes() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<'loading' | 'ready'>('loading');
   const [initialStep, setInitialStep] = useState(0);
+  const [wizardCompleted, setWizardCompleted] = useState(false);
 
   useEffect(() => {
     getWizardState()
@@ -28,11 +29,15 @@ function AppRoutes() {
         if (!state.completed && !state.active_task) {
           const step = getFirstIncompleteStep(state);
           setInitialStep(step);
+          setWizardCompleted(false);
           navigate('/setup', { replace: true });
+        } else {
+          setWizardCompleted(true);
         }
         setStatus('ready');
       })
       .catch(() => {
+        setWizardCompleted(false);
         navigate('/setup', { replace: true });
         setStatus('ready');
       });
@@ -62,8 +67,8 @@ function AppRoutes() {
         <Route path="status/infrastructure" element={<StatusInfrastructure />} />
         <Route path="status/security" element={<StatusSecurity />} />
       </Route>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to={wizardCompleted ? "/dashboard" : "/setup"} replace />} />
+      <Route path="*" element={<Navigate to={wizardCompleted ? "/dashboard" : "/setup"} replace />} />
     </Routes>
   );
 }
