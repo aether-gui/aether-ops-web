@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   CheckCircle,
   XCircle,
@@ -6,149 +6,125 @@ import {
   Circle,
   ChevronDown,
   ChevronUp,
-  RotateCcw,
+  Ban,
   Rocket,
+  Square,
 } from 'lucide-react';
-import { getWizardState } from '../../api/wizard';
-import { listNodes } from '../../api/nodes';
-import { executeAction } from '../../api/onramp';
+import { listDeployments, cancelDeployment } from '../../api/onramp';
+import { useDeploymentPoller } from '../../hooks/useDeploymentPoller';
 import { useTaskPoller } from '../../hooks/useTaskPoller';
-import { getDeployStepsForRoles, type DeployStep } from '../../config/deployOrder';
+import { DEPLOY_ORDER } from '../../config/deployOrder';
 import TaskMonitorModal from '../steps/TaskMonitorModal';
+import type { Deployment, DeploymentStatus } from '../../types/api';
 
-type StepStatus = 'pending' | 'running' | 'succeeded' | 'failed';
-type BannerState = 'loading' | 'idle' | 'running' | 'succeeded' | 'failed';
+type BannerState = 'loading' | 'idle' | 'active' | 'succeeded' | 'failed' | 'canceled';
+
+function labelForAction(component: string, action: string): string {
+  const match = DEPLOY_ORDER.find((s) => s.component === component && s.action === action);
+  return match?.label ?? `${component}/${action}`;
+}
+
+function bannerStateFromDeployment(d: Deployment | null): BannerState {
+  if (!d) return 'idle';
+  switch (d.status) {
+    case 'pending':
+    case 'running':
+      return 'active';
+    case 'succeeded':
+      return 'succeeded';
+    case 'failed':
+      return 'failed';
+    case 'canceled':
+      return 'canceled';
+    default:
+      return 'idle';
+  }
+}
 
 export default function DeploymentBanner() {
-  const [bannerState, setBannerState] = useState<BannerState>('loading');
+  const [activeDeploymentId, setActiveDeploymentId] = useState<string | null>(null);
+  const [initDone, setInitDone] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [deploySteps, setDeploySteps] = useState<DeployStep[]>([]);
-  const [stepStatuses, setStepStatuses] = useState<StepStatus[]>([]);
-  const [currentStepIdx, setCurrentStepIdx] = useState(-1);
-  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [showMonitor, setShowMonitor] = useState(false);
+  const [monitorActionId, setMonitorActionId] = useState<string | null>(null);
   const [monitorLabel, setMonitorLabel] = useState('');
-  const runningRef = useRef(false);
+  const [canceling, setCanceling] = useState(false);
 
-  const { task, error: taskError, reset: resetPoller } = useTaskPoller(currentTaskId);
+  const { deployment, error: pollError } = useDeploymentPoller(activeDeploymentId);
+  const { task, error: taskError, reset: resetPoller } = useTaskPoller(monitorActionId);
 
-  // Bootstrap: check wizard state for an active task
   useEffect(() => {
     let cancelled = false;
-
-    async function init() {
-      try {
-        const state = await getWizardState();
-        if (!state.active_task || cancelled) {
-          setBannerState('idle');
-          return;
+    listDeployments()
+      .then((deployments) => {
+        if (cancelled) return;
+        if (Array.isArray(deployments)) {
+          const active = deployments.find(
+            (d) => d.status === 'running' || d.status === 'pending',
+          );
+          if (active) setActiveDeploymentId(active.id);
         }
-
-        const nodes = (await listNodes()) ?? [];
-        const allRoles = [...new Set(nodes.flatMap((n) => n.roles ?? []))];
-        const steps = getDeployStepsForRoles(allRoles);
-
-        if (steps.length === 0 || cancelled) {
-          setBannerState('idle');
-          return;
-        }
-
-        const activeTask = state.active_task;
-        const idx = steps.findIndex(
-          (s) => s.component === activeTask.component && s.action === activeTask.action
-        );
-
-        const statuses: StepStatus[] = steps.map((_, i) => {
-          if (i < idx) return 'succeeded';
-          if (i === idx) return 'running';
-          return 'pending';
-        });
-
-        setDeploySteps(steps);
-        setStepStatuses(statuses);
-        setCurrentStepIdx(idx >= 0 ? idx : 0);
-        setMonitorLabel(idx >= 0 ? steps[idx].label : steps[0].label);
-        setCurrentTaskId(activeTask.id);
-        runningRef.current = true;
-        setBannerState('running');
-      } catch {
-        setBannerState('idle');
-      }
-    }
-
-    init();
+        setInitDone(true);
+      })
+      .catch(() => {
+        if (!cancelled) setInitDone(true);
+      });
     return () => { cancelled = true; };
   }, []);
 
-  const advanceToNext = useCallback(
-    async (nextIdx: number) => {
-      if (nextIdx >= deploySteps.length) {
-        runningRef.current = false;
-        setBannerState('succeeded');
-        return;
-      }
+  const bannerState = useMemo<BannerState>(() => {
+    if (!initDone) return 'loading';
+    return bannerStateFromDeployment(deployment);
+  }, [initDone, deployment]);
 
-      const step = deploySteps[nextIdx];
-      setCurrentStepIdx(nextIdx);
-      setStepStatuses((prev) => {
-        const next = [...prev];
-        next[nextIdx] = 'running';
-        return next;
-      });
-      setMonitorLabel(step.label);
-      resetPoller();
-
-      try {
-        const t = await executeAction(step.component, step.action);
-        setCurrentTaskId(t.id);
-      } catch {
-        setStepStatuses((prev) => {
-          const next = [...prev];
-          next[nextIdx] = 'failed';
-          return next;
-        });
-        runningRef.current = false;
-        setBannerState('failed');
-      }
-    },
-    [deploySteps, resetPoller]
-  );
-
-  // React to task status changes
-  useEffect(() => {
-    if (!task || !runningRef.current) return;
-    if (task.status === 'succeeded') {
-      setStepStatuses((prev) => {
-        const next = [...prev];
-        next[currentStepIdx] = 'succeeded';
-        return next;
-      });
-      advanceToNext(currentStepIdx + 1);
-    } else if (task.status === 'failed') {
-      setStepStatuses((prev) => {
-        const next = [...prev];
-        next[currentStepIdx] = 'failed';
-        return next;
-      });
-      runningRef.current = false;
-      setBannerState('failed');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task?.status]);
-
-  const retryFailed = useCallback(() => {
-    if (currentStepIdx < 0 || currentStepIdx >= deploySteps.length) return;
-    runningRef.current = true;
-    setBannerState('running');
-    advanceToNext(currentStepIdx);
-  }, [currentStepIdx, deploySteps.length, advanceToNext]);
+  const runningAction = useMemo(() => {
+    if (!deployment) return null;
+    return deployment.actions.find((a) => a.status === 'running') ?? null;
+  }, [deployment]);
 
   const completedCount = useMemo(
-    () => stepStatuses.filter((s) => s === 'succeeded').length,
-    [stepStatuses]
+    () => deployment?.actions.filter((a) => a.status === 'succeeded').length ?? 0,
+    [deployment],
   );
 
-  const stepIcon = (status: StepStatus) => {
+  const totalCount = deployment?.actions.length ?? 0;
+
+  const currentLabel = runningAction
+    ? labelForAction(runningAction.component, runningAction.action)
+    : '';
+
+  const failedAction = useMemo(() => {
+    if (!deployment) return null;
+    return deployment.actions.find((a) => a.status === 'failed') ?? null;
+  }, [deployment]);
+
+  const failedLabel = failedAction
+    ? labelForAction(failedAction.component, failedAction.action)
+    : '';
+
+  const openMonitor = useCallback(
+    (actionId: string, label: string) => {
+      resetPoller();
+      setMonitorActionId(actionId);
+      setMonitorLabel(label);
+      setShowMonitor(true);
+    },
+    [resetPoller],
+  );
+
+  const handleCancel = useCallback(async () => {
+    if (!activeDeploymentId) return;
+    setCanceling(true);
+    try {
+      await cancelDeployment(activeDeploymentId);
+    } catch {
+      // poller will pick up actual state
+    } finally {
+      setCanceling(false);
+    }
+  }, [activeDeploymentId]);
+
+  const stepIcon = (status: DeploymentStatus) => {
     switch (status) {
       case 'succeeded':
         return <CheckCircle size={16} className="text-emerald-500" />;
@@ -156,12 +132,13 @@ export default function DeploymentBanner() {
         return <XCircle size={16} className="text-red-500" />;
       case 'running':
         return <Loader2 size={16} className="text-sky-500 animate-spin" />;
+      case 'canceled':
+        return <Ban size={16} className="text-gray-400" />;
       default:
         return <Circle size={16} className="text-gray-300" />;
     }
   };
 
-  // Render nothing if no deployment is active
   if (bannerState === 'loading' || bannerState === 'idle') return null;
 
   const barColor =
@@ -169,84 +146,78 @@ export default function DeploymentBanner() {
       ? 'bg-emerald-50 border-emerald-200'
       : bannerState === 'failed'
         ? 'bg-red-50 border-red-200'
-        : 'bg-sky-50 border-sky-200';
+        : bannerState === 'canceled'
+          ? 'bg-gray-50 border-gray-200'
+          : 'bg-sky-50 border-sky-200';
 
   const barTextColor =
     bannerState === 'succeeded'
       ? 'text-emerald-800'
       : bannerState === 'failed'
         ? 'text-red-800'
-        : 'text-sky-800';
-
-  const currentLabel =
-    currentStepIdx >= 0 && currentStepIdx < deploySteps.length
-      ? deploySteps[currentStepIdx].label
-      : '';
+        : bannerState === 'canceled'
+          ? 'text-gray-700'
+          : 'text-sky-800';
 
   return (
     <div className={`border-b ${barColor}`}>
-      {/* Collapsed bar */}
       <button
         onClick={() => setExpanded((e) => !e)}
         className={`w-full flex items-center gap-3 px-6 py-3 text-left ${barTextColor}`}
       >
-        {bannerState === 'running' && <Loader2 size={16} className="animate-spin flex-shrink-0" />}
+        {bannerState === 'active' && <Loader2 size={16} className="animate-spin flex-shrink-0" />}
         {bannerState === 'succeeded' && <CheckCircle size={16} className="flex-shrink-0" />}
         {bannerState === 'failed' && <XCircle size={16} className="flex-shrink-0" />}
+        {bannerState === 'canceled' && <Ban size={16} className="flex-shrink-0" />}
 
         <span className="text-sm font-medium flex-1">
           {bannerState === 'succeeded' && 'Deployment Complete'}
-          {bannerState === 'failed' && `Deployment Failed: ${currentLabel}`}
-          {bannerState === 'running' && `Deploying: ${currentLabel} (${completedCount + 1}/${deploySteps.length})`}
+          {bannerState === 'failed' && `Deployment Failed: ${failedLabel}`}
+          {bannerState === 'canceled' && 'Deployment Canceled'}
+          {bannerState === 'active' && `Deploying: ${currentLabel} (${completedCount}/${totalCount} complete)`}
         </span>
+
+        {pollError && (
+          <span className="text-xs text-red-500 mr-2">Poll error</span>
+        )}
 
         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
 
-      {/* Expanded detail */}
-      {expanded && (
+      {expanded && deployment && (
         <div className="px-6 pb-4 space-y-2">
-          {deploySteps.map((step, idx) => {
-            const status = stepStatuses[idx];
+          {deployment.actions.map((action) => {
+            const label = labelForAction(action.component, action.action);
+            const canViewOutput = action.status === 'running' || action.status === 'failed' || action.status === 'succeeded';
             return (
               <div
-                key={step.component + step.action}
+                key={action.action_id}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${
-                  status === 'running'
+                  action.status === 'running'
                     ? 'bg-sky-100/60'
-                    : status === 'failed'
+                    : action.status === 'failed'
                       ? 'bg-red-100/60'
-                      : status === 'succeeded'
+                      : action.status === 'succeeded'
                         ? 'bg-emerald-100/40'
-                        : 'bg-white/60'
+                        : action.status === 'canceled'
+                          ? 'bg-gray-100/40'
+                          : 'bg-white/60'
                 }`}
               >
-                {stepIcon(status)}
-                <span className="flex-1 font-medium text-gray-900">{step.label}</span>
-                {status === 'running' && (
+                {stepIcon(action.status)}
+                <span className="flex-1 font-medium text-gray-900">{label}</span>
+                <span className="text-xs text-gray-500">{action.component}/{action.action}</span>
+                {canViewOutput && (
                   <button
-                    onClick={() => setShowMonitor(true)}
-                    className="text-xs text-sky-600 hover:text-sky-700 font-medium"
+                    onClick={(e) => { e.stopPropagation(); openMonitor(action.action_id, label); }}
+                    className={`text-xs font-medium ml-2 ${
+                      action.status === 'failed'
+                        ? 'text-red-600 hover:text-red-700'
+                        : 'text-sky-600 hover:text-sky-700'
+                    }`}
                   >
                     View Output
                   </button>
-                )}
-                {status === 'failed' && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowMonitor(true)}
-                      className="text-xs text-red-600 hover:text-red-700 font-medium"
-                    >
-                      View Output
-                    </button>
-                    <button
-                      onClick={retryFailed}
-                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition-colors"
-                    >
-                      <RotateCcw size={11} />
-                      Retry
-                    </button>
-                  </div>
                 )}
               </div>
             );
@@ -260,12 +231,25 @@ export default function DeploymentBanner() {
               </span>
             </div>
           )}
+
+          {bannerState === 'active' && (
+            <div className="pt-2">
+              <button
+                onClick={handleCancel}
+                disabled={canceling}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+              >
+                <Square size={12} />
+                {canceling ? 'Canceling...' : 'Cancel Deployment'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       <TaskMonitorModal
         open={showMonitor}
-        onClose={() => setShowMonitor(false)}
+        onClose={() => { setShowMonitor(false); setMonitorActionId(null); }}
         task={task}
         error={taskError}
         label={monitorLabel}

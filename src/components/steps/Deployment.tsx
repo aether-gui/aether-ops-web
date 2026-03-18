@@ -4,7 +4,7 @@ import {
   Play,
   Circle,
 } from 'lucide-react';
-import { getDeployStepsForRoles, type DeployStep } from '../../config/deployOrder';
+import type { DeployStep } from '../../config/deployOrder';
 import { displayNameForRole } from '../../config/roles';
 import type { WizardData } from '../../hooks/useWizardState';
 

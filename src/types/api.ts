@@ -557,6 +557,39 @@ export interface N3IWFConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Deployments  –  /api/v1/onramp/deploy, /api/v1/onramp/deployments/*
+// ---------------------------------------------------------------------------
+
+export type DeploymentStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'canceled';
+
+export interface DeployRequestAction {
+  component: string;
+  action: string;
+}
+
+export interface DeployRequest {
+  actions: DeployRequestAction[];
+}
+
+export interface DeploymentAction {
+  action_id: string;
+  component: string;
+  action: string;
+  status: DeploymentStatus;
+  started_at?: string;
+  finished_at?: string;
+}
+
+export interface Deployment {
+  id: string;
+  status: DeploymentStatus;
+  actions: DeploymentAction[];
+  created_at: string;
+  updated_at: string;
+  finished_at?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Preflight (not in the OpenAPI spec but used by the wizard)
 // ---------------------------------------------------------------------------
 

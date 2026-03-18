@@ -4,7 +4,7 @@
  * Aether OnRamp operations: components, tasks, action history,
  * deployment state, config profiles, and inventory management.
  */
-import { get, post, patch as patchRequest } from './client';
+import { get, post, del, patch as patchRequest } from './client';
 import type {
   Component,
   OnRampTask,
@@ -18,6 +18,8 @@ import type {
   RepoStatus,
   ProfileActivateResult,
   ConfigDefaultsResult,
+  DeployRequest,
+  Deployment,
 } from '../types/api';
 
 // ---------------------------------------------------------------------------
@@ -66,6 +68,26 @@ export function getTask(id: string, offset?: number) {
   const params: Record<string, string | number> = {};
   if (offset !== undefined) params.offset = offset;
   return get<OnRampTask>(`/onramp/tasks/${id}`, params);
+}
+
+// ---------------------------------------------------------------------------
+// Deployments
+// ---------------------------------------------------------------------------
+
+export function startDeployment(body: DeployRequest) {
+  return post<Deployment>('/onramp/deploy', body);
+}
+
+export function listDeployments() {
+  return get<Deployment[] | null>('/onramp/deployments');
+}
+
+export function getDeployment(id: string) {
+  return get<Deployment>(`/onramp/deployments/${id}`);
+}
+
+export function cancelDeployment(id: string) {
+  return del<void>(`/onramp/deployments/${id}`);
 }
 
 // ---------------------------------------------------------------------------

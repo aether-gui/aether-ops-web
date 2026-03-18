@@ -13,7 +13,7 @@ import { useWizardState } from '../../hooks/useWizardState';
 import { useHealthCheck } from '../../hooks/useHealthCheck';
 import AlertBanner from '../shared/AlertBanner';
 import Modal from '../shared/Modal';
-import { syncInventory, executeAction, applyConfigDefaults } from '../../api/onramp';
+import { syncInventory, startDeployment, applyConfigDefaults } from '../../api/onramp';
 import { listNodes } from '../../api/nodes';
 import { markStepComplete } from '../../api/wizard';
 import { getDeployStepsForRoles } from '../../config/deployOrder';
@@ -159,9 +159,9 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
     try { await syncInventory(); } catch { /* best effort */ }
 
     if (deploySteps.length > 0) {
-      const firstStep = deploySteps[0];
+      const actions = deploySteps.map((s) => ({ component: s.component, action: s.action }));
       try {
-        await executeAction(firstStep.component, firstStep.action);
+        await startDeployment({ actions });
       } catch {
         // banner will detect and handle
       }

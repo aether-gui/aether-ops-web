@@ -26,7 +26,7 @@ function AppRoutes() {
   useEffect(() => {
     getWizardState()
       .then((state) => {
-        if (!state.completed && !state.active_task) {
+        if (!state.completed) {
           const step = getFirstIncompleteStep(state);
           setInitialStep(step);
           setWizardCompleted(false);

@@ -32,7 +32,7 @@ export const DEPLOY_ORDER: DeployStep[] = [
   },
   {
     component: 'srsran',
-    action: 'install',
+    action: 'gnb-install',
     label: 'srsRAN 5G',
     requiredRole: 'srsran',
   },
