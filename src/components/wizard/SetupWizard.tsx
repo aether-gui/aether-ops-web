@@ -89,7 +89,7 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
       case 4:
         return !data.defaultsLoading;
       case 5:
-        return false;
+        return deploySteps.length > 0;
       default:
         return false;
     }
@@ -204,7 +204,7 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
       case 4:
         return <ConfigReview data={data} update={update} />;
       case 5:
-        return <Deployment data={data} deploySteps={deploySteps} onStartDeploy={handleStartDeploy} />;
+        return <Deployment data={data} deploySteps={deploySteps} />;
       default:
         return null;
     }
@@ -242,9 +242,9 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
               totalSteps={STEPS.length}
               canContinue={canContinue}
               onBack={handleBack}
-              onContinue={handleContinue}
+              onContinue={currentStep === STEPS.length - 1 ? handleStartDeploy : handleContinue}
+              continueLabel={currentStep === STEPS.length - 1 ? 'Start Deployment' : undefined}
               loading={continueLoading}
-              hideContinue={currentStep === STEPS.length - 1}
             />
           </div>
           {currentStep !== STEPS.length - 1 && (

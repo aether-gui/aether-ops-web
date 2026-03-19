@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import {
   Rocket,
-  Play,
   Circle,
 } from 'lucide-react';
 import type { DeployStep } from '../../config/deployOrder';
@@ -11,10 +10,9 @@ import type { WizardData } from '../../hooks/useWizardState';
 interface DeploymentProps {
   data: WizardData;
   deploySteps: DeployStep[];
-  onStartDeploy: () => void;
 }
 
-export default function Deployment({ data, deploySteps, onStartDeploy }: DeploymentProps) {
+export default function Deployment({ data, deploySteps }: DeploymentProps) {
   const excluded = useMemo(() => new Set(data.excludedNodeIds), [data.excludedNodeIds]);
   const includedNodes = useMemo(
     () => data.nodes.filter((n) => !excluded.has(n.id)),
@@ -86,14 +84,6 @@ export default function Deployment({ data, deploySteps, onStartDeploy }: Deploym
           </div>
         ))}
       </div>
-
-      <button
-        onClick={onStartDeploy}
-        className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-intel-600 rounded-lg hover:bg-intel-700 transition-colors shadow-sm"
-      >
-        <Play size={16} />
-        Start Deployment
-      </button>
     </div>
   );
 }

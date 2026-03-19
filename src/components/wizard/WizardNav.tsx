@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Rocket } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
 
 interface WizardNavProps {
   currentStep: number;
@@ -43,7 +43,7 @@ export default function WizardNav({
           {loading ? (
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : isLast ? (
-            <Rocket size={16} />
+            <Play size={16} />
           ) : null}
           {label}
           {!isLast && !loading && <ChevronRight size={16} />}
