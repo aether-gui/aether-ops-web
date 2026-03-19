@@ -44,6 +44,22 @@ function setPath(
   };
 }
 
+// Recursively removes null/undefined values from a config object so that
+// pruned sections (e.g. gnbsim: null) are omitted from the PATCH body
+// instead of triggering schema validation errors.
+function stripNulls(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === 'object' && !Array.isArray(v)) {
+      result[k] = stripNulls(v as Record<string, unknown>);
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
+
 function countEditableFields(obj: Record<string, unknown>): number {
   let count = 0;
   for (const v of Object.values(obj)) {
@@ -192,7 +208,7 @@ export default function ConfigReview({ data, update }: ConfigReviewProps) {
     setSaveStatus('saving');
     setSaveError(null);
     try {
-      const saved = await patchOnrampConfig(localConfig);
+      const saved = await patchOnrampConfig(stripNulls(localConfig));
       update({ onrampConfig: saved });
       setLocalConfig(JSON.parse(JSON.stringify(saved)));
       setSaveStatus('saved');
