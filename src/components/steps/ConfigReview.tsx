@@ -53,7 +53,7 @@ interface SectionCardProps {
 }
 
 function SectionCard({ sectionKey, label, sectionData, onChange, defaultsApplied }: SectionCardProps) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const sectionDefaults = defaultsApplied.filter((d) => d.field.startsWith(`${sectionKey}.`));
   const fieldCount = Object.keys(sectionData).length;
 
@@ -102,7 +102,7 @@ interface AppliedDefaultsPanelProps {
 }
 
 function AppliedDefaultsPanel({ applied }: AppliedDefaultsPanelProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   return (
     <div className="border border-intel-200 rounded-xl overflow-hidden bg-intel-50/40">
