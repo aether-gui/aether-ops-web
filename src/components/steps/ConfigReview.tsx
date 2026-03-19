@@ -180,12 +180,15 @@ export default function ConfigReview({ data, update }: ConfigReviewProps) {
   );
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const hasInitialized = useRef(data.onrampConfig !== null);
 
+  // Sync localConfig whenever the upstream config changes (e.g. after
+  // compose + apply-defaults finishes asynchronously). Replaces any
+  // prior local state so stale data from a previous wizard pass is
+  // never shown.
   useEffect(() => {
-    if (!hasInitialized.current && data.onrampConfig !== null) {
-      hasInitialized.current = true;
+    if (data.onrampConfig !== null) {
       setLocalConfig(JSON.parse(JSON.stringify(data.onrampConfig)));
+      setSaveStatus('idle');
     }
   }, [data.onrampConfig]);
 
