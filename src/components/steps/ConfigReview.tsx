@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Save,
   Info,
+  Bug,
 } from 'lucide-react';
 import { patchOnrampConfig, applyConfigDefaults } from '../../api/onramp';
 import ConfigFieldEditor from './ConfigFieldEditor';
@@ -173,6 +174,35 @@ function AppliedDefaultsPanel({ applied }: AppliedDefaultsPanelProps) {
   );
 }
 
+function RawConfigDebugPanel({ config }: { config: Record<string, unknown> | null }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border border-dashed border-gray-300 rounded-xl overflow-hidden mt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+      >
+        <Bug size={13} className="text-gray-400 flex-shrink-0" />
+        <span className="text-xs font-medium text-gray-500">Debug: Raw config received from API</span>
+        {open ? (
+          <ChevronDown size={13} className="ml-auto text-gray-400" />
+        ) : (
+          <ChevronRight size={13} className="ml-auto text-gray-400" />
+        )}
+      </button>
+      {open && (
+        <div className="bg-gray-900 p-4 overflow-auto max-h-96">
+          <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap break-words">
+            {config ? JSON.stringify(config, null, 2) : 'null'}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function ConfigReview({ data, update }: ConfigReviewProps) {
@@ -228,13 +258,21 @@ export default function ConfigReview({ data, update }: ConfigReviewProps) {
     setReloading(true);
     try {
       const result = await applyConfigDefaults();
+      console.group('[ConfigReview] Reload – applyConfigDefaults result');
+      console.log('applied:', result.applied);
+      console.log('errors:', result.errors);
+      console.log('config:', JSON.parse(JSON.stringify(result.config)));
+      if (result.config?.srsran) {
+        console.log('srsran section:', JSON.parse(JSON.stringify(result.config.srsran)));
+      }
+      console.groupEnd();
       update({
         onrampConfig: result.config,
         configDefaultsApplied: result.applied ?? [],
         configDefaultsErrors: result.errors ?? [],
       });
-    } catch {
-      // leave existing config in place on error
+    } catch (err) {
+      console.error('[ConfigReview] Reload failed:', err);
     } finally {
       setReloading(false);
     }
@@ -347,6 +385,8 @@ export default function ConfigReview({ data, update }: ConfigReviewProps) {
               <p className="text-sm text-red-700">{saveError}</p>
             </div>
           )}
+
+          <RawConfigDebugPanel config={data.onrampConfig} />
         </>
       )}
 

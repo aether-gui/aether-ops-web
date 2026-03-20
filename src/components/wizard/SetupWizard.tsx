@@ -136,8 +136,23 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
       update({ defaultsLoading: true, onrampConfig: null, configDefaultsErrors: [], configDefaultsApplied: [] });
       const components = rolesToComponents(allRoles);
       composeConfig(components)
-        .then(() => applyConfigDefaults())
+        .then((composeResult) => {
+          console.group('[Wizard] composeConfig result');
+          console.log('components:', composeResult.components);
+          console.log('active_blueprints:', composeResult.active_blueprints);
+          console.log('config:', JSON.parse(JSON.stringify(composeResult.config)));
+          console.groupEnd();
+          return applyConfigDefaults();
+        })
         .then((result) => {
+          console.group('[Wizard] applyConfigDefaults result');
+          console.log('applied:', result.applied);
+          console.log('errors:', result.errors);
+          console.log('config:', JSON.parse(JSON.stringify(result.config)));
+          if (result.config?.srsran) {
+            console.log('srsran section:', JSON.parse(JSON.stringify(result.config.srsran)));
+          }
+          console.groupEnd();
           update({
             onrampConfig: result.config,
             configDefaultsApplied: result.applied ?? [],
@@ -146,6 +161,7 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
           });
         })
         .catch((err) => {
+          console.error('[Wizard] config pipeline failed:', err);
           update({
             configDefaultsErrors: [
               err instanceof Error ? err.message : 'Failed to compute config defaults',
