@@ -14,10 +14,10 @@ import {
   Monitor,
   AlertCircle,
 } from 'lucide-react';
-import { runPreflightChecks, applyFix } from '../../api/preflight';
+import { runPreflightChecks, runAllNodesPreflightChecks, applyFix, applyNodeFix } from '../../api/preflight';
 import { syncInventory, executeAction, getTask } from '../../api/onramp';
 import type { WizardData } from '../../hooks/useWizardState';
-import type { CheckResult, ManagedNode } from '../../types/api';
+import type { CheckResult, ManagedNode, NodePreflightSummary } from '../../types/api';
 
 interface PreflightChecksProps {
   data: WizardData;
@@ -62,13 +62,93 @@ function severityBg(severity: string, passed: boolean) {
   return 'border-sky-100 bg-sky-50/30';
 }
 
+function CheckCard({
+  check,
+  expanded,
+  onToggle,
+  onFix,
+  fixingId,
+  fixMsg,
+}: {
+  check: CheckResult;
+  expanded: boolean;
+  onToggle: () => void;
+  onFix: () => void;
+  fixingId: string | null;
+  fixMsg?: { success: boolean; message: string };
+}) {
+  return (
+    <div className={`rounded-lg border transition-colors ${severityBg(check.severity, check.passed)}`}>
+      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+        {severityIcon(check.severity, check.passed)}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900">{check.name}</p>
+          <p className="text-xs text-gray-500 truncate">{check.description}</p>
+        </div>
+        <span className="text-xs font-medium text-gray-400 uppercase mr-2">{check.category}</span>
+        {expanded ? (
+          <ChevronDown size={16} className="text-gray-400" />
+        ) : (
+          <ChevronRight size={16} className="text-gray-400" />
+        )}
+      </button>
+
+      {expanded && !check.passed && (
+        <div className="px-4 pb-4 border-t border-gray-100/60 pt-3 ml-9">
+          {check.message && <p className="text-sm text-gray-700 mb-2">{check.message}</p>}
+          {check.details && (
+            <div className="bg-white/70 rounded-md p-3 text-xs text-gray-600 font-mono mb-3 whitespace-pre-wrap">
+              {check.details}
+            </div>
+          )}
+
+          {check.can_fix && (
+            <div className="flex items-start gap-3 mt-2">
+              <button
+                onClick={onFix}
+                disabled={fixingId === check.id}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 disabled:opacity-40 transition-colors"
+              >
+                {fixingId === check.id ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Wrench size={12} />
+                )}
+                Auto-fix
+              </button>
+              {check.fix_warning && (
+                <p className="text-xs text-amber-600 leading-relaxed">{check.fix_warning}</p>
+              )}
+            </div>
+          )}
+
+          {fixMsg && (
+            <div
+              className={`mt-3 text-xs rounded-md px-3 py-2 ${
+                fixMsg.success
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}
+            >
+              {fixMsg.message}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PreflightChecks({ data, update }: PreflightChecksProps) {
   const [loading, setLoading] = useState(false);
+  const [nodeChecksLoading, setNodeChecksLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [fixMessages, setFixMessages] = useState<Record<string, { success: boolean; message: string }>>({});
   const [verifyingAll, setVerifyingAll] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  // Track expanded node cards (by node ID)
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(new Set());
 
   const excluded = useMemo(() => new Set(data.excludedNodeIds), [data.excludedNodeIds]);
   const includedNodes = useMemo(
@@ -81,6 +161,17 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
     [includedNodes, data.nodeVerification]
   );
 
+  // Check if all remote required checks pass on all included nodes
+  const allNodeChecksPassed = useMemo(() => {
+    if (data.nodePreflightResults.length === 0) return true; // no results yet, don't block
+    return data.nodePreflightResults
+      .filter((ns) => !excluded.has(ns.node_id))
+      .every(
+        (ns) =>
+          !ns.error && ns.results.every((r) => r.passed || r.severity !== 'required')
+      );
+  }, [data.nodePreflightResults, excluded]);
+
   const runChecks = useCallback(async () => {
     setLoading(true);
     setFixMessages({});
@@ -91,7 +182,7 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
       );
       update({
         preflightResults: summary.results,
-        preflightPassed: allRequiredPassed && allIncludedVerified,
+        preflightPassed: allRequiredPassed && allIncludedVerified && allNodeChecksPassed,
       });
 
       const failedIds = new Set(summary.results.filter((r) => !r.passed).map((r) => r.id));
@@ -101,24 +192,54 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
     } finally {
       setLoading(false);
     }
-  }, [update, allIncludedVerified]);
+  }, [update, allIncludedVerified, allNodeChecksPassed]);
 
-  // Update preflightPassed whenever verification status changes
+  const runNodeChecks = useCallback(async () => {
+    if (includedNodes.length === 0) return;
+    setNodeChecksLoading(true);
+    try {
+      const summary = await runAllNodesPreflightChecks();
+      const nodeResults = summary.nodes ?? [];
+      update({ nodePreflightResults: nodeResults });
+
+      // Auto-expand nodes with failures
+      const failedNodeIds = new Set(
+        nodeResults
+          .filter((ns) => ns.error || ns.results.some((r) => !r.passed))
+          .map((ns) => ns.node_id)
+      );
+      setExpandedNodeIds(failedNodeIds);
+    } catch {
+      update({ nodePreflightResults: [] });
+    } finally {
+      setNodeChecksLoading(false);
+    }
+  }, [includedNodes.length, update]);
+
+  // Update preflightPassed whenever verification status or node checks change
   useEffect(() => {
     if (data.preflightResults.length === 0) return;
     const allRequiredPassed = data.preflightResults.every(
       (r) => r.passed || r.severity !== 'required'
     );
-    const shouldPass = allRequiredPassed && allIncludedVerified;
+    const shouldPass = allRequiredPassed && allIncludedVerified && allNodeChecksPassed;
     if (data.preflightPassed !== shouldPass) {
       update({ preflightPassed: shouldPass });
     }
-  }, [allIncludedVerified, data.preflightResults, data.preflightPassed, update]);
+  }, [allIncludedVerified, allNodeChecksPassed, data.preflightResults, data.preflightPassed, update]);
 
   useEffect(() => {
     runChecks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Run node checks after initial load when nodes are available
+  useEffect(() => {
+    if (includedNodes.length > 0) {
+      runNodeChecks();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includedNodes.length]);
 
   const verifyNodes = useCallback(async () => {
     setVerifyingAll(true);
@@ -210,11 +331,42 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
     []
   );
 
+  const handleNodeFix = useCallback(
+    async (nodeId: string, check: CheckResult) => {
+      const key = `${nodeId}:${check.id}`;
+      setFixingId(key);
+      try {
+        const result = await applyNodeFix(nodeId, check.id);
+        setFixMessages((prev) => ({
+          ...prev,
+          [key]: { success: result.success, message: result.message },
+        }));
+      } catch (err) {
+        setFixMessages((prev) => ({
+          ...prev,
+          [key]: { success: false, message: err instanceof Error ? err.message : 'Fix failed' },
+        }));
+      } finally {
+        setFixingId(null);
+      }
+    },
+    []
+  );
+
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleNodeExpand = (nodeId: string) => {
+    setExpandedNodeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
       return next;
     });
   };
@@ -253,11 +405,11 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
           </p>
         </div>
         <button
-          onClick={runChecks}
-          disabled={loading}
+          onClick={() => { runChecks(); runNodeChecks(); }}
+          disabled={loading || nodeChecksLoading}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
         >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={14} className={loading || nodeChecksLoading ? 'animate-spin' : ''} />
           Re-check All
         </button>
       </div>
@@ -325,7 +477,7 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
         )}
       </div>
 
-      {/* Preflight Checks Section */}
+      {/* Control Plane Checks Section */}
       {loading && results.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader2 size={28} className="text-intel-600 animate-spin" />
@@ -333,6 +485,7 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
         </div>
       ) : (
         <>
+          <p className="text-sm font-medium text-gray-700 mb-3">Control Plane Checks</p>
           <div className="flex items-center gap-4 mb-5 p-3 rounded-lg bg-gray-50 border border-gray-100">
             <Shield size={20} className="text-gray-400" />
             <div className="flex-1">
@@ -358,84 +511,155 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
           </div>
 
           <div className="space-y-2">
-            {results.map((check) => {
-              const expanded = expandedIds.has(check.id);
-              const fixMsg = fixMessages[check.id];
-              return (
-                <div
-                  key={check.id}
-                  className={`rounded-lg border transition-colors ${severityBg(check.severity, check.passed)}`}
-                >
-                  <button
-                    onClick={() => toggleExpand(check.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left"
-                  >
-                    {severityIcon(check.severity, check.passed)}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{check.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{check.description}</p>
-                    </div>
-                    <span className="text-xs font-medium text-gray-400 uppercase mr-2">
-                      {check.category}
-                    </span>
-                    {expanded ? (
-                      <ChevronDown size={16} className="text-gray-400" />
-                    ) : (
-                      <ChevronRight size={16} className="text-gray-400" />
-                    )}
-                  </button>
-
-                  {expanded && !check.passed && (
-                    <div className="px-4 pb-4 border-t border-gray-100/60 pt-3 ml-9">
-                      {check.message && (
-                        <p className="text-sm text-gray-700 mb-2">{check.message}</p>
-                      )}
-                      {check.details && (
-                        <div className="bg-white/70 rounded-md p-3 text-xs text-gray-600 font-mono mb-3 whitespace-pre-wrap">
-                          {check.details}
-                        </div>
-                      )}
-
-                      {check.can_fix && (
-                        <div className="flex items-start gap-3 mt-2">
-                          <button
-                            onClick={() => handleFix(check)}
-                            disabled={fixingId === check.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 disabled:opacity-40 transition-colors"
-                          >
-                            {fixingId === check.id ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Wrench size={12} />
-                            )}
-                            Auto-fix
-                          </button>
-                          {check.fix_warning && (
-                            <p className="text-xs text-amber-600 leading-relaxed">
-                              {check.fix_warning}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {fixMsg && (
-                        <div
-                          className={`mt-3 text-xs rounded-md px-3 py-2 ${
-                            fixMsg.success
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : 'bg-red-50 text-red-700 border border-red-200'
-                          }`}
-                        >
-                          {fixMsg.message}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {results.map((check) => (
+              <CheckCard
+                key={check.id}
+                check={check}
+                expanded={expandedIds.has(check.id)}
+                onToggle={() => toggleExpand(check.id)}
+                onFix={() => handleFix(check)}
+                fixingId={fixingId}
+                fixMsg={fixMessages[check.id]}
+              />
+            ))}
           </div>
         </>
+      )}
+
+      {/* Node Preflight Checks Section */}
+      {includedNodes.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-gray-700">Node Checks</p>
+            {nodeChecksLoading && (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Loader2 size={12} className="animate-spin" />
+                Checking nodes...
+              </div>
+            )}
+          </div>
+
+          {data.nodePreflightResults.length === 0 && !nodeChecksLoading && (
+            <p className="text-xs text-gray-400">
+              Node preflight checks have not been run yet.
+            </p>
+          )}
+
+          <div className="space-y-3">
+            {data.nodePreflightResults
+              .filter((ns) => !excluded.has(ns.node_id))
+              .map((nodeSummary) => (
+                <NodeCheckCard
+                  key={nodeSummary.node_id}
+                  nodeSummary={nodeSummary}
+                  expanded={expandedNodeIds.has(nodeSummary.node_id)}
+                  onToggle={() => toggleNodeExpand(nodeSummary.node_id)}
+                  onFix={(check) => handleNodeFix(nodeSummary.node_id, check)}
+                  fixingId={fixingId}
+                  fixMessages={fixMessages}
+                  expandedCheckIds={expandedIds}
+                  onToggleCheck={toggleExpand}
+                />
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NodeCheckCard({
+  nodeSummary,
+  expanded,
+  onToggle,
+  onFix,
+  fixingId,
+  fixMessages,
+  expandedCheckIds,
+  onToggleCheck,
+}: {
+  nodeSummary: NodePreflightSummary;
+  expanded: boolean;
+  onToggle: () => void;
+  onFix: (check: CheckResult) => void;
+  fixingId: string | null;
+  fixMessages: Record<string, { success: boolean; message: string }>;
+  expandedCheckIds: Set<string>;
+  onToggleCheck: (id: string) => void;
+}) {
+  const allPassed = !nodeSummary.error && nodeSummary.results.every((r) => r.passed);
+  const requiredFailing = nodeSummary.results.filter(
+    (r) => !r.passed && r.severity === 'required'
+  ).length;
+
+  return (
+    <div className="rounded-lg border border-gray-200 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-gray-50/50 hover:bg-gray-50 transition-colors"
+      >
+        <Server size={16} className="text-gray-400 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900">{nodeSummary.node_name}</p>
+          <p className="text-xs text-gray-400">{nodeSummary.node_host}</p>
+        </div>
+        {nodeSummary.error ? (
+          <span className="flex items-center gap-1 text-xs font-medium text-red-600">
+            <XCircle size={14} />
+            Connection Error
+          </span>
+        ) : allPassed ? (
+          <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+            <CheckCircle size={14} />
+            {nodeSummary.passed}/{nodeSummary.total} passed
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-xs font-medium text-red-600">
+            <XCircle size={14} />
+            {nodeSummary.failed}/{nodeSummary.total} failing
+          </span>
+        )}
+        {expanded ? (
+          <ChevronDown size={16} className="text-gray-400" />
+        ) : (
+          <ChevronRight size={16} className="text-gray-400" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="px-4 py-3 border-t border-gray-100">
+          {nodeSummary.error ? (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-700">Failed to connect</p>
+                <p className="text-xs text-red-600 mt-1">{nodeSummary.error}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {requiredFailing > 0 && (
+                <p className="text-xs text-red-600 mb-2">
+                  {requiredFailing} required check{requiredFailing > 1 ? 's' : ''} failing
+                </p>
+              )}
+              {nodeSummary.results.map((check) => {
+                const checkKey = `${nodeSummary.node_id}:${check.id}`;
+                return (
+                  <CheckCard
+                    key={check.id}
+                    check={check}
+                    expanded={expandedCheckIds.has(checkKey)}
+                    onToggle={() => onToggleCheck(checkKey)}
+                    onFix={() => onFix(check)}
+                    fixingId={fixingId}
+                    fixMsg={fixMessages[checkKey]}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

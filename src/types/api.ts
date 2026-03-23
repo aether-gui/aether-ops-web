@@ -578,6 +578,18 @@ export interface PreflightSummary {
   failed: number;
   total: number;
   results: CheckResult[];
+  nodes?: NodePreflightSummary[];
+}
+
+export interface NodePreflightSummary {
+  node_id: string;
+  node_name: string;
+  node_host: string;
+  passed: number;
+  failed: number;
+  total: number;
+  error?: string;
+  results: CheckResult[];
 }
 
 export interface FixResult {
