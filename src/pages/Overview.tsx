@@ -1,25 +1,79 @@
-import { Activity, Server, Radio, Users, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Activity, Server, Radio, Users, AlertCircle, CheckCircle, Loader2, Clock, MemoryStick } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { listNodes } from '../api/nodes';
 import { listComponentStates } from '../api/onramp';
+import { getProviders } from '../api/meta';
 import { getCpu, getMemory, getOs } from '../api/system';
-import type { ManagedNode, ComponentStateItem, CPUInfo, MemoryInfo, OSInfo } from '../types/api';
+import { useMetricsHistory } from '../hooks/useMetricsHistory';
+import type { ManagedNode, ComponentStateItem, CPUInfo, MemoryInfo, OSInfo, ProvidersInfo } from '../types/api';
+
+const HIDDEN_COMPONENTS = new Set(['4gc', 'amp']);
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const parts: string[] = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0 || d > 0) parts.push(`${h}h`);
+  parts.push(`${m}m`);
+  return parts.join(' ');
+}
+
+function formatOsString(os: OSInfo): string {
+  const name = os.platform.charAt(0).toUpperCase() + os.platform.slice(1);
+  const ver = os.platform_version ? ` ${os.platform_version}` : '';
+  const kernel = os.kernel_version ? `${os.os} ${os.kernel_version}` : os.os;
+  const arch = os.kernel_arch || '';
+  const details = [kernel, arch].filter(Boolean).join(', ');
+  return details ? `${name}${ver} (${details})` : `${name}${ver}`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+}
+
+function deriveWebuiState(providers: ProvidersInfo | null): string {
+  if (!providers) return 'unknown';
+  const degraded = providers.providers.some(p => p.degraded);
+  return degraded ? 'degraded' : 'running';
+}
 
 export default function Overview() {
   const [nodes, setNodes] = useState<ManagedNode[]>([]);
-  const [components, setComponents] = useState<ComponentStateItem[]>([]);
+  const [rawComponents, setRawComponents] = useState<ComponentStateItem[]>([]);
+  const [providers, setProviders] = useState<ProvidersInfo | null>(null);
   const [systemInfo, setSystemInfo] = useState<{ cpu?: CPUInfo; memory?: MemoryInfo; os?: OSInfo }>({});
   const [loading, setLoading] = useState(true);
+  const { cpuHistory, memoryHistory } = useMetricsHistory();
 
   useEffect(() => {
     Promise.all([
-      listNodes().then(setNodes).catch(() => []),
-      listComponentStates().then(c => setComponents(c || [])).catch(() => []),
+      listNodes().then(n => setNodes(n || [])).catch(() => []),
+      listComponentStates().then(c => setRawComponents(c || [])).catch(() => []),
+      getProviders().then(setProviders).catch(() => null),
       getCpu().then(cpu => setSystemInfo(prev => ({ ...prev, cpu }))).catch(() => {}),
       getMemory().then(memory => setSystemInfo(prev => ({ ...prev, memory }))).catch(() => {}),
       getOs().then(os => setSystemInfo(prev => ({ ...prev, os }))).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, []);
+
+  const components = useMemo(() => {
+    const filtered = rawComponents.filter(
+      c => !HIDDEN_COMPONENTS.has(c.component.toLowerCase()),
+    );
+    const webuiState = deriveWebuiState(providers);
+    const webuiEntry: ComponentStateItem = {
+      component: 'WebUI',
+      state: webuiState,
+      status: webuiState,
+    };
+    return [webuiEntry, ...filtered];
+  }, [rawComponents, providers]);
 
   const coreComponents = components.filter(c =>
     ['5gc', 'sd-core', 'amf', 'smf', 'upf', 'nrf', 'ausf', 'udm', 'udr', 'pcf'].some(name =>
@@ -111,7 +165,8 @@ export default function Overview() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="border-b border-gray-200 px-6 py-4">
-                <h2 className="text-lg font-semibold text-gray-900">System Information</h2>
+                <h2 className="text-lg font-semibold text-gray-900">WebUI Host</h2>
+                <p className="text-xs text-gray-500 mt-0.5">System information for the host running this WebUI instance</p>
               </div>
               <div className="p-6 space-y-4">
                 {systemInfo.os && (
@@ -123,31 +178,86 @@ export default function Overview() {
                     <span className="text-sm font-medium text-gray-900">{systemInfo.os.hostname}</span>
                   </div>
                 )}
-                {systemInfo.cpu && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Activity className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">CPU Cores</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{systemInfo.cpu.physical_cores} physical / {systemInfo.cpu.logical_cores} logical</span>
-                  </div>
-                )}
-                {systemInfo.memory && systemInfo.memory.physical_usage_percent !== undefined && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Server className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">Memory Usage</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{systemInfo.memory.physical_usage_percent.toFixed(1)}%</span>
-                  </div>
-                )}
                 {systemInfo.os && (
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Server className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-700">OS</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-900">{systemInfo.os.platform}</span>
+                    <span className="text-sm font-medium text-gray-900">{formatOsString(systemInfo.os)}</span>
+                  </div>
+                )}
+                {systemInfo.cpu && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Activity className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700">CPU</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">
+                        {systemInfo.cpu.physical_cores} physical / {systemInfo.cpu.logical_cores} logical
+                      </span>
+                      {cpuHistory.length > 1 && (
+                        <div className="w-20 h-8">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={cpuHistory}>
+                              <Area
+                                type="monotone"
+                                dataKey="value"
+                                stroke="#3b82f6"
+                                fill="#3b82f6"
+                                fillOpacity={0.15}
+                                strokeWidth={1.5}
+                                dot={false}
+                                isAnimationActive={false}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {systemInfo.memory && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <MemoryStick className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700">Memory</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatBytes(systemInfo.memory.used_bytes)} / {formatBytes(systemInfo.memory.total_bytes)} ({systemInfo.memory.usage_percent.toFixed(1)}%)
+                      </span>
+                      {memoryHistory.length > 1 && (
+                        <div className="w-20 h-8">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={memoryHistory}>
+                              <Area
+                                type="monotone"
+                                dataKey="value"
+                                stroke="#8b5cf6"
+                                fill="#8b5cf6"
+                                fillOpacity={0.15}
+                                strokeWidth={1.5}
+                                dot={false}
+                                isAnimationActive={false}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {systemInfo.os && systemInfo.os.uptime_seconds > 0 && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700">Uptime</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {formatUptime(systemInfo.os.uptime_seconds)}
+                    </span>
                   </div>
                 )}
               </div>
@@ -155,7 +265,7 @@ export default function Overview() {
 
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="border-b border-gray-200 px-6 py-4">
-                <h2 className="text-lg font-semibold text-gray-900">Component Status</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Service Status</h2>
               </div>
               <div className="p-6 space-y-4">
                 {components.length === 0 ? (
@@ -165,7 +275,7 @@ export default function Overview() {
                     <p className="text-xs text-gray-400 mt-1">Run the setup wizard to get started</p>
                   </div>
                 ) : (
-                  components.slice(0, 5).map((comp) => (
+                  components.slice(0, 6).map((comp) => (
                     <div key={comp.component} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Server className="w-4 h-4 text-gray-400" />
@@ -174,7 +284,9 @@ export default function Overview() {
                       <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
                         comp.state === 'running' ? 'bg-green-100 text-green-700' :
                         comp.state === 'installed' ? 'bg-blue-100 text-blue-700' :
+                        comp.state === 'degraded' ? 'bg-amber-100 text-amber-700' :
                         comp.state === 'stopped' ? 'bg-gray-100 text-gray-700' :
+                        comp.state === 'unknown' ? 'bg-gray-100 text-gray-500' :
                         'bg-red-100 text-red-700'
                       }`}>
                         {comp.state}

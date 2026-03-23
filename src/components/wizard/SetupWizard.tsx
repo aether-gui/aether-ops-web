@@ -191,6 +191,28 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
     navigate('/dashboard', { replace: true });
   }, [deploySteps, navigate, update]);
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Enter') return;
+      if (showSkipWarning || continueLoading || !canContinue) return;
+
+      const target = e.target as HTMLElement;
+      const tag = target.tagName.toLowerCase();
+      if (tag === 'textarea' || tag === 'input' || tag === 'select') return;
+      if (target.closest('[role="dialog"]')) return;
+
+      e.preventDefault();
+      if (currentStep === STEPS.length - 1) {
+        handleStartDeploy();
+      } else {
+        handleContinue();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [canContinue, continueLoading, currentStep, showSkipWarning, handleContinue, handleStartDeploy]);
+
   const handleSkipSetup = useCallback(() => {
     setShowSkipWarning(true);
   }, []);
