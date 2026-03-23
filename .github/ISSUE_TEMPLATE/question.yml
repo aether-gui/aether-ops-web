@@ -1,0 +1,35 @@
+name: Question
+description: Ask a question about Aether WebUI
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What would you like to know?
+    validations:
+      required: true
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      description: What area does your question relate to?
+      options:
+        - Setup Wizard
+        - Node Management
+        - Preflight Checks
+        - Deployment
+        - API Integration
+        - Dashboard
+        - General
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Any extra context, logs, or configuration details.
+      render: shell
+    validations:
+      required: false
