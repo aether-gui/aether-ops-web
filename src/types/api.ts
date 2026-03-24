@@ -135,6 +135,7 @@ export interface DiagnosticCheck {
 /** GET /system/cpu – CPU model, cores, frequency, cache, and flags. */
 export interface CPUInfo {
   model: string;
+  model_name: string;
   physical_cores: number;
   logical_cores: number;
   frequency_mhz: number;
@@ -148,9 +149,13 @@ export interface MemoryInfo {
   available_bytes: number;
   used_bytes: number;
   usage_percent: number;
+  physical_total_bytes: number;
+  physical_used_bytes: number;
+  physical_usage_percent: number;
   swap_total_bytes: number;
   swap_used_bytes: number;
   swap_percent: number;
+  swap_usage_percent: number;
 }
 
 /** GET /system/disks – partition list with usage. */
@@ -161,6 +166,7 @@ export interface DiskInfo {
 export interface Partition {
   device: string;
   mountpoint: string;
+  mount_point: string;
   fs_type: string;
   total_bytes: number;
   used_bytes: number;
@@ -176,6 +182,7 @@ export interface OSInfo {
   platform_version: string;
   kernel_version: string;
   kernel_arch: string;
+  arch: string;
   uptime_seconds: number;
 }
 
@@ -246,6 +253,10 @@ export interface ManagedNode {
   name: string;
   /** IP or hostname for SSH. */
   ansible_host: string;
+  /** Convenience alias returned by the API. */
+  address?: string;
+  /** SSH port (defaults to 22). */
+  port?: number;
   /** SSH username. */
   ansible_user: string;
   has_password: boolean;
@@ -338,7 +349,8 @@ export interface OnRampTask {
 /** GET /onramp/state – per-component deployment state. */
 export interface ComponentStateItem {
   component: string;
-  /** "not_installed" | "installed" | "failed" | "installing" | "uninstalling". */
+  /** "not_installed" | "installed" | "running" | "stopped" | "failed" | "installing" | "uninstalling". */
+  state: string;
   status: string;
   action_id?: string;
   last_action?: string;

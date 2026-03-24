@@ -1,0 +1,27 @@
+name: Documentation Improvement
+description: Suggest a documentation change or addition
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Page or section URL
+      description: Link to the page or section that needs updating, if applicable.
+      placeholder: https://...
+    validations:
+      required: false
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs to change?
+      description: Describe what is missing, incorrect, or unclear.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+      description: How would you improve the documentation?
+    validations:
+      required: false
