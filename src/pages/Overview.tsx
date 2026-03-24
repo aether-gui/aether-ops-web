@@ -1,12 +1,34 @@
 import { Activity, Server, Radio, Users, AlertCircle, CheckCircle, Loader2, Clock, MemoryStick } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+
 import { listNodes } from '../api/nodes';
 import { listComponentStates } from '../api/onramp';
 import { getProviders } from '../api/meta';
 import { getCpu, getMemory, getOs } from '../api/system';
 import { useMetricsHistory } from '../hooks/useMetricsHistory';
 import type { ManagedNode, ComponentStateItem, CPUInfo, MemoryInfo, OSInfo, ProvidersInfo } from '../types/api';
+
+function Sparkline({ data, color }: { data: { value: number }[]; color: string }) {
+  if (data.length < 2) return null;
+  const values = data.map(d => d.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const w = 80;
+  const h = 32;
+  const pts = values.map((v, i) => [
+    (i / (values.length - 1)) * w,
+    h - ((v - min) / range) * (h - 4) - 2,
+  ]);
+  const line = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const fill = `${line} L${w},${h} L0,${h} Z`;
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
+      <path d={fill} fill={color} fillOpacity={0.15} />
+      <path d={line} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 const HIDDEN_COMPONENTS = new Set(['4gc', 'amp']);
 
@@ -198,22 +220,7 @@ export default function Overview() {
                         {systemInfo.cpu.physical_cores} physical / {systemInfo.cpu.logical_cores} logical
                       </span>
                       {cpuHistory.length > 1 && (
-                        <div className="w-20 h-8">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={cpuHistory}>
-                              <Area
-                                type="monotone"
-                                dataKey="value"
-                                stroke="#3b82f6"
-                                fill="#3b82f6"
-                                fillOpacity={0.15}
-                                strokeWidth={1.5}
-                                dot={false}
-                                isAnimationActive={false}
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
+                        <Sparkline data={cpuHistory} color="#3b82f6" />
                       )}
                     </div>
                   </div>
@@ -229,22 +236,7 @@ export default function Overview() {
                         {formatBytes(systemInfo.memory.used_bytes)} / {formatBytes(systemInfo.memory.total_bytes)} ({systemInfo.memory.usage_percent.toFixed(1)}%)
                       </span>
                       {memoryHistory.length > 1 && (
-                        <div className="w-20 h-8">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={memoryHistory}>
-                              <Area
-                                type="monotone"
-                                dataKey="value"
-                                stroke="#8b5cf6"
-                                fill="#8b5cf6"
-                                fillOpacity={0.15}
-                                strokeWidth={1.5}
-                                dot={false}
-                                isAnimationActive={false}
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
+                        <Sparkline data={memoryHistory} color="#10b981" />
                       )}
                     </div>
                   </div>
