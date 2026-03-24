@@ -611,11 +611,24 @@ export interface CheckResult {
   description: string;
   passed: boolean;
   severity: 'required' | 'warning' | 'info';
-  category: string;
+  category: 'tooling' | 'access' | 'network';
   message: string;
   details: string;
+  notes: string;
   can_fix: boolean;
   fix_warning: string;
+  error: string;
+}
+
+export interface NodePreflightSummary {
+  node_id: string;
+  node_name: string;
+  node_host: string;
+  passed: number;
+  failed: number;
+  total: number;
+  error: string;
+  results: CheckResult[];
 }
 
 export interface PreflightSummary {
@@ -623,12 +636,15 @@ export interface PreflightSummary {
   failed: number;
   total: number;
   results: CheckResult[];
+  nodes: NodePreflightSummary[];
 }
 
 export interface FixResult {
   id: string;
-  success: boolean;
+  applied: boolean;
   message: string;
+  warning: string;
+  error: string;
 }
 
 // ---------------------------------------------------------------------------
