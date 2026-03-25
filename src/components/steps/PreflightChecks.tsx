@@ -370,28 +370,56 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
   const isLocalhost = (n: ManagedNode) =>
     n.ansible_host === '127.0.0.1' || n.ansible_host === 'localhost';
 
-  const nodeStatusIcon = (nodeId: string) => {
-    const status = data.nodeVerification[nodeId];
-    if (status === 'verified') return <CheckCircle size={16} className="text-emerald-500" />;
-    if (status === 'failed') return <XCircle size={16} className="text-red-500" />;
-    if (verifyingAll) return <Loader2 size={16} className="text-sky-500 animate-spin" />;
-    return <div className="w-4 h-4 rounded-full border-2 border-gray-300" />;
-  };
-
-  const nodeStatusLabel = (nodeId: string) => {
-    const status = data.nodeVerification[nodeId];
-    if (status === 'verified') return 'Verified';
-    if (status === 'failed') return 'Failed';
-    if (verifyingAll) return 'Checking...';
-    return 'Pending';
-  };
-
-  const localResults = data.preflightResults;
-  const localPassed = localResults.filter((r) => r.passed).length;
-  const localTotal = localResults.length;
-  const localRequiredFailed = localResults.filter((r) => !r.passed && r.severity === 'required').length;
-
   const isAnythingLoading = localLoading || allNodesLoading || verifyingAll;
+
+  const getNodeData = (node: ManagedNode) => {
+    if (isLocalhost(node)) {
+      const results = data.preflightResults;
+      const passed = results.filter((r) => r.passed).length;
+      const requiredFailed = results.filter((r) => !r.passed && r.severity === 'required').length;
+      return {
+        results,
+        loading: localLoading,
+        error: null as string | null,
+        passed,
+        total: results.length,
+        requiredFailed,
+        checkIdPrefix: 'local' as string,
+        fixNodeId: undefined as string | undefined,
+      };
+    }
+    const summary = nodeCheckResults.find((n) => n.node_id === node.id);
+    if (!summary) {
+      return {
+        results: [] as CheckResult[],
+        loading: allNodesLoading,
+        error: null as string | null,
+        passed: 0,
+        total: 0,
+        requiredFailed: 0,
+        checkIdPrefix: node.id,
+        fixNodeId: node.id,
+      };
+    }
+    return {
+      results: summary.results,
+      loading: false,
+      error: summary.error ?? null,
+      passed: summary.results.filter((r) => r.passed).length,
+      total: summary.results.length,
+      requiredFailed: summary.results.filter((r) => !r.passed && r.severity === 'required').length,
+      checkIdPrefix: node.id,
+      fixNodeId: node.id,
+    };
+  };
+
+  const sshStatus = (nodeId: string) => {
+    const s = data.nodeVerification[nodeId];
+    if (s === 'verified') return 'verified';
+    if (s === 'failed') return 'failed';
+    if (verifyingAll) return 'checking';
+    return 'pending';
+  };
 
   return (
     <div>
@@ -412,237 +440,182 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
         </button>
       </div>
 
-      {/* Node Connectivity Section */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Wifi size={15} className="text-gray-400" />
-          <p className="text-sm font-medium text-gray-700">SSH Connectivity</p>
-          {verifyingAll && (
-            <span className="text-xs text-sky-600 font-medium flex items-center gap-1">
-              <Loader2 size={11} className="animate-spin" />
-              Running...
-            </span>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          {includedNodes.map((node) => (
-            <div
-              key={node.id}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50/50"
-            >
-              {isLocalhost(node) ? (
-                <Monitor size={14} className="text-gray-400" />
-              ) : (
-                <Server size={14} className="text-gray-400" />
-              )}
-              <div className="flex-1 min-w-0">
-                <span className="text-sm text-gray-900">{node.name}</span>
-                <span className="text-xs text-gray-400 ml-2">{node.ansible_host}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {nodeStatusIcon(node.id)}
-                <span
-                  className={`text-xs font-medium ${
-                    data.nodeVerification[node.id] === 'verified'
-                      ? 'text-emerald-600'
-                      : data.nodeVerification[node.id] === 'failed'
-                        ? 'text-red-600'
-                        : 'text-gray-400'
-                  }`}
-                >
-                  {nodeStatusLabel(node.id)}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {verifyError && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-            <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700">{verifyError}</p>
-          </div>
-        )}
-
-        {!allIncludedVerified && !verifyingAll && includedNodes.length > 0 && (
-          <p className="text-xs text-amber-600 mt-2">
-            All included nodes must pass connectivity verification to continue.
-          </p>
-        )}
-      </div>
-
-      {/* Local System Checks */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Monitor size={15} className="text-gray-400" />
-          <p className="text-sm font-medium text-gray-700">Management Node</p>
-          {localLoading && (
-            <span className="text-xs text-sky-600 font-medium flex items-center gap-1">
-              <Loader2 size={11} className="animate-spin" />
-              Running...
-            </span>
-          )}
-        </div>
-
-        {localLoading && localResults.length === 0 ? (
-          <div className="flex items-center justify-center py-10 gap-3">
-            <Loader2 size={22} className="text-gray-400 animate-spin" />
-            <p className="text-sm text-gray-500">Running local checks...</p>
-          </div>
-        ) : localResults.length > 0 ? (
-          <>
-            <div className="flex items-center gap-4 mb-4 p-3 rounded-lg bg-gray-50 border border-gray-100">
-              <Shield size={18} className="text-gray-400" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        localPassed === localTotal ? 'bg-emerald-500' : 'bg-intel-500'
-                      }`}
-                      style={{ width: localTotal > 0 ? `${(localPassed / localTotal) * 100}%` : '0%' }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 tabular-nums">
-                    {localPassed}/{localTotal}
-                  </span>
-                </div>
-                {localRequiredFailed > 0 && (
-                  <p className="text-xs text-red-600 mt-1">
-                    {localRequiredFailed} required check{localRequiredFailed > 1 ? 's' : ''} failing
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {localResults.map((check) => (
-                <CheckRow
-                  key={check.id}
-                  check={check}
-                  expandKey={`local:${check.id}`}
-                  expanded={expandedIds.has(`local:${check.id}`)}
-                  onToggle={toggleExpand}
-                  fixingKey={fixingKey}
-                  fixMsg={fixMessages[`local:${check.id}`]}
-                  onFix={(c) => handleFix(c)}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
-      </div>
-
-      {/* Remote Node Checks */}
-      {(allNodesLoading || nodeCheckResults.length > 0 || allNodesError) && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Server size={15} className="text-gray-400" />
-            <p className="text-sm font-medium text-gray-700">Remote Nodes</p>
-            {allNodesLoading && (
-              <span className="text-xs text-sky-600 font-medium flex items-center gap-1">
-                <Loader2 size={11} className="animate-spin" />
-                Running...
-              </span>
-            )}
-          </div>
-
-          {allNodesLoading && nodeCheckResults.length === 0 ? (
-            <div className="flex items-center justify-center py-10 gap-3">
-              <Loader2 size={22} className="text-gray-400 animate-spin" />
-              <p className="text-sm text-gray-500">Running remote node checks...</p>
-            </div>
-          ) : allNodesError ? (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-              <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{allNodesError}</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {nodeCheckResults.map((node) => {
-                const nodeExpanded = expandedNodeIds.has(node.node_id);
-                const nodePassed = node.results.filter((r) => r.passed).length;
-                const nodeTotal = node.results.length;
-                const nodeRequiredFailed = node.results.filter(
-                  (r) => !r.passed && r.severity === 'required'
-                ).length;
-                const hasConnectionError = !!node.error;
-
-                return (
-                  <div
-                    key={node.node_id}
-                    className={`rounded-lg border ${
-                      hasConnectionError || nodeRequiredFailed > 0
-                        ? 'border-red-200'
-                        : node.failed > 0
-                          ? 'border-amber-200'
-                          : 'border-gray-200'
-                    }`}
-                  >
-                    <button
-                      onClick={() => toggleNodeExpand(node.node_id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left"
-                    >
-                      {hasConnectionError || nodeRequiredFailed > 0 ? (
-                        <XCircle size={16} className="text-red-500 flex-shrink-0" />
-                      ) : node.failed > 0 ? (
-                        <AlertTriangle size={16} className="text-amber-500 flex-shrink-0" />
-                      ) : (
-                        <CheckCircle size={16} className="text-emerald-500 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{node.node_name}</p>
-                        <p className="text-xs text-gray-400">{node.node_host}</p>
-                      </div>
-                      {!hasConnectionError && nodeTotal > 0 && (
-                        <span className="text-xs font-medium text-gray-500 tabular-nums mr-2">
-                          {nodePassed}/{nodeTotal}
-                        </span>
-                      )}
-                      {hasConnectionError && (
-                        <span className="text-xs font-medium text-red-500 mr-2">Connection error</span>
-                      )}
-                      {nodeExpanded ? (
-                        <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
-                      ) : (
-                        <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
-                      )}
-                    </button>
-
-                    {nodeExpanded && (
-                      <div className="border-t border-gray-100 px-4 pb-4 pt-3">
-                        {hasConnectionError && (
-                          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-                            <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs text-red-700 font-mono">{node.error}</p>
-                          </div>
-                        )}
-                        {node.results.length > 0 && (
-                          <div className="space-y-2">
-                            {node.results.map((check) => (
-                              <CheckRow
-                                key={check.id}
-                                check={check}
-                                expandKey={`${node.node_id}:${check.id}`}
-                                expanded={expandedIds.has(`${node.node_id}:${check.id}`)}
-                                onToggle={toggleExpand}
-                                fixingKey={fixingKey}
-                                fixMsg={fixMessages[`${node.node_id}:${check.id}`]}
-                                onFix={(c) => handleFix(c, node.node_id)}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {verifyError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+          <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-700">{verifyError}</p>
         </div>
       )}
+
+      {allNodesError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+          <AlertCircle size={15} className="text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-700">{allNodesError}</p>
+        </div>
+      )}
+
+      {!allIncludedVerified && !verifyingAll && includedNodes.length > 0 && (
+        <p className="text-xs text-amber-600 mb-4">
+          All included nodes must pass SSH connectivity verification to continue.
+        </p>
+      )}
+
+      <div className="space-y-3">
+        {includedNodes.map((node) => {
+          const nd = getNodeData(node);
+          const ssh = sshStatus(node.id);
+          const nodeExpanded = expandedNodeIds.has(node.id);
+          const localhost = isLocalhost(node);
+
+          const hasIssue = nd.error || nd.requiredFailed > 0 || ssh === 'failed';
+          const hasWarning = !hasIssue && (nd.total > nd.passed);
+          const allGood = !hasIssue && !hasWarning && ssh === 'verified' && nd.total > 0 && nd.passed === nd.total;
+
+          const borderColor = hasIssue
+            ? 'border-red-200'
+            : hasWarning
+              ? 'border-amber-200'
+              : allGood
+                ? 'border-emerald-200'
+                : 'border-gray-200';
+
+          const headerIcon = hasIssue
+            ? <XCircle size={16} className="text-red-500 flex-shrink-0" />
+            : hasWarning
+              ? <AlertTriangle size={16} className="text-amber-500 flex-shrink-0" />
+              : allGood
+                ? <CheckCircle size={16} className="text-emerald-500 flex-shrink-0" />
+                : nd.loading || ssh === 'checking'
+                  ? <Loader2 size={16} className="text-sky-500 animate-spin flex-shrink-0" />
+                  : <div className="w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0" />;
+
+          return (
+            <div key={node.id} className={`rounded-lg border ${borderColor}`}>
+              <button
+                onClick={() => toggleNodeExpand(node.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              >
+                {headerIcon}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {localhost ? (
+                    <Monitor size={14} className="text-gray-400" />
+                  ) : (
+                    <Server size={14} className="text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{node.name}</p>
+                  <p className="text-xs text-gray-400">{node.ansible_host}</p>
+                </div>
+
+                <div className="flex items-center gap-3 mr-2">
+                  <span className={`flex items-center gap-1 text-xs font-medium ${
+                    ssh === 'verified' ? 'text-emerald-600' :
+                    ssh === 'failed' ? 'text-red-600' :
+                    ssh === 'checking' ? 'text-sky-500' :
+                    'text-gray-400'
+                  }`}>
+                    {ssh === 'checking' ? (
+                      <Loader2 size={11} className="animate-spin" />
+                    ) : (
+                      <Wifi size={11} />
+                    )}
+                    {ssh === 'verified' ? 'SSH OK' : ssh === 'failed' ? 'SSH Failed' : ssh === 'checking' ? 'Checking...' : 'SSH Pending'}
+                  </span>
+
+                  {nd.total > 0 && (
+                    <span className={`text-xs font-medium tabular-nums ${
+                      nd.requiredFailed > 0 ? 'text-red-500' :
+                      nd.passed < nd.total ? 'text-amber-500' :
+                      'text-emerald-600'
+                    }`}>
+                      <Shield size={11} className="inline mr-0.5 -mt-0.5" />
+                      {nd.passed}/{nd.total}
+                    </span>
+                  )}
+                  {nd.loading && nd.total === 0 && (
+                    <span className="text-xs text-sky-500 flex items-center gap-1">
+                      <Loader2 size={11} className="animate-spin" />
+                      Checking...
+                    </span>
+                  )}
+                </div>
+
+                {nodeExpanded ? (
+                  <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+                ) : (
+                  <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />
+                )}
+              </button>
+
+              {nodeExpanded && (
+                <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-3">
+                  {/* SSH connectivity row */}
+                  <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${
+                    ssh === 'verified' ? 'border-emerald-100 bg-emerald-50/40' :
+                    ssh === 'failed' ? 'border-red-100 bg-red-50/40' :
+                    'border-gray-100 bg-gray-50/40'
+                  }`}>
+                    {ssh === 'verified' ? (
+                      <CheckCircle size={15} className="text-emerald-500 flex-shrink-0" />
+                    ) : ssh === 'failed' ? (
+                      <XCircle size={15} className="text-red-500 flex-shrink-0" />
+                    ) : ssh === 'checking' ? (
+                      <Loader2 size={15} className="text-sky-500 animate-spin flex-shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                    )}
+                    <Wifi size={13} className="text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">SSH Connectivity</p>
+                      <p className="text-xs text-gray-500">OnRamp ping verification via Ansible</p>
+                    </div>
+                    <span className={`text-xs font-medium ${
+                      ssh === 'verified' ? 'text-emerald-600' :
+                      ssh === 'failed' ? 'text-red-600' :
+                      ssh === 'checking' ? 'text-sky-500' :
+                      'text-gray-400'
+                    }`}>
+                      {ssh === 'verified' ? 'Verified' : ssh === 'failed' ? 'Failed' : ssh === 'checking' ? 'Running...' : 'Pending'}
+                    </span>
+                  </div>
+
+                  {/* Preflight checks */}
+                  {nd.loading && nd.total === 0 ? (
+                    <div className="flex items-center justify-center py-6 gap-3">
+                      <Loader2 size={20} className="text-gray-400 animate-spin" />
+                      <p className="text-sm text-gray-500">Running preflight checks...</p>
+                    </div>
+                  ) : nd.error ? (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                      <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-red-700 font-mono">{nd.error}</p>
+                    </div>
+                  ) : nd.results.length > 0 ? (
+                    <div className="space-y-2">
+                      {nd.results.map((check) => {
+                        const expandKey = `${nd.checkIdPrefix}:${check.id}`;
+                        return (
+                          <CheckRow
+                            key={check.id}
+                            check={check}
+                            expandKey={expandKey}
+                            expanded={expandedIds.has(expandKey)}
+                            onToggle={toggleExpand}
+                            fixingKey={fixingKey}
+                            fixMsg={fixMessages[expandKey]}
+                            onFix={(c) => handleFix(c, nd.fixNodeId)}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
