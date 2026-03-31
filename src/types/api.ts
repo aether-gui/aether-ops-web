@@ -684,3 +684,19 @@ export interface ConfigComposeResult {
   components: string[];
   config: OnRampConfig;
 }
+
+// ---------------------------------------------------------------------------
+// Bulk deployment  –  /api/v1/onramp/deploy/bulk
+// ---------------------------------------------------------------------------
+
+export interface BulkDeployResource {
+  component: string;
+  action: string;
+  target_node?: string;
+}
+
+export interface BulkDeployParseResult {
+  valid: boolean;
+  resources: BulkDeployResource[];
+  errors?: string[];
+}

@@ -55,24 +55,35 @@ export default function DeploymentBanner() {
   const { deployment, error: pollError } = useDeploymentPoller(activeDeploymentId);
   const { task, error: taskError, reset: resetPoller } = useTaskPoller(monitorActionId);
 
-  useEffect(() => {
-    let cancelled = false;
+  const checkForActiveDeployment = useCallback(() => {
     listDeployments()
       .then((deployments) => {
-        if (cancelled) return;
         if (Array.isArray(deployments)) {
           const active = deployments.find(
             (d) => d.status === 'running' || d.status === 'pending',
           );
-          if (active) setActiveDeploymentId(active.id);
+          if (active) {
+            setActiveDeploymentId(active.id);
+            setDismissed(false);
+          }
         }
         setInitDone(true);
       })
       .catch(() => {
-        if (!cancelled) setInitDone(true);
+        setInitDone(true);
       });
-    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    checkForActiveDeployment();
+  }, [checkForActiveDeployment]);
+
+  // Listen for deployments started from other parts of the app
+  useEffect(() => {
+    const handler = () => checkForActiveDeployment();
+    window.addEventListener('deployment-started', handler);
+    return () => window.removeEventListener('deployment-started', handler);
+  }, [checkForActiveDeployment]);
 
   const bannerState = useMemo<BannerState>(() => {
     if (!initDone) return 'loading';
