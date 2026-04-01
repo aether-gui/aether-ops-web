@@ -957,7 +957,7 @@
           "process_name": {
             "description": "Name of the listening process",
             "examples": [
-              "aether-webd"
+              "aether-ops"
             ],
             "type": "string"
           },
@@ -2125,7 +2125,7 @@
           "binary_path": {
             "description": "Path to the running binary",
             "examples": [
-              "/usr/local/bin/aether-webd"
+              "/usr/local/bin/aether-ops"
             ],
             "type": "string"
           },
@@ -2490,7 +2490,7 @@
           "data_dir": {
             "description": "Directory for persistent state database",
             "examples": [
-              "/var/lib/aether-webd"
+              "/var/lib/aether-ops"
             ],
             "type": "string"
           }
@@ -2552,7 +2552,7 @@
           "path": {
             "description": "Database file path",
             "examples": [
-              "/var/lib/aether-webd/app.db"
+              "/var/lib/aether-ops/app.db"
             ],
             "type": "string"
           },

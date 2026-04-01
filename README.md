@@ -1,4 +1,4 @@
-# aether-webui
+# aether-ops-web
 
 Web-based setup wizard and dashboard for the Aether stack.
 
@@ -79,7 +79,7 @@ The contents of `dist/` are plain static files and can be served by any web serv
 ```nginx
 server {
     listen 80;
-    root /path/to/aether-webui/dist;
+    root /path/to/aether-ops-web/dist;
     index index.html;
 
     location / {
