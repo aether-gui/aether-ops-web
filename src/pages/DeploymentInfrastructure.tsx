@@ -87,10 +87,18 @@ export default function DeploymentInfrastructure() {
     fetchData();
   }, [fetchData]);
 
-  // Poll component states every 10s
+  // Poll component states every 10s; refresh immediately when a deployment completes
   useEffect(() => {
     const interval = setInterval(refreshStates, 10_000);
-    return () => clearInterval(interval);
+    const onCompleted = () => {
+      // Small delay to let the backend settle after the final action
+      setTimeout(refreshStates, 1_000);
+    };
+    window.addEventListener('deployment-completed', onCompleted);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('deployment-completed', onCompleted);
+    };
   }, [refreshStates]);
 
   // Build per-node component info
@@ -131,7 +139,8 @@ export default function DeploymentInfrastructure() {
 
   const handleDeployStarted = useCallback(() => {
     window.dispatchEvent(new Event('deployment-started'));
-    refreshStates();
+    // Delay the refresh so the backend has time to register new component states
+    setTimeout(refreshStates, 2_000);
   }, [refreshStates]);
 
   if (loading) {

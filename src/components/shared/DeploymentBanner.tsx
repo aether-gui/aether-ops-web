@@ -90,6 +90,13 @@ export default function DeploymentBanner() {
     return bannerStateFromDeployment(deployment);
   }, [initDone, deployment]);
 
+  // Notify the rest of the app when a deployment reaches a terminal state
+  useEffect(() => {
+    if (bannerState === 'succeeded' || bannerState === 'failed' || bannerState === 'canceled') {
+      window.dispatchEvent(new Event('deployment-completed'));
+    }
+  }, [bannerState]);
+
   const runningAction = useMemo(() => {
     if (!deployment) return null;
     return deployment.actions.find((a) => a.status === 'running') ?? null;
