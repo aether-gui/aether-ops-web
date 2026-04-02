@@ -236,7 +236,7 @@ export default function DeploymentInfrastructure() {
               ) : (
                 <div className="space-y-3">
                   {components.map(({ component, label, state }) => {
-                    const currentState = state?.state;
+                    const currentState = state?.status;
                     const canUninstall =
                       currentState === 'installed' ||
                       currentState === 'running' ||

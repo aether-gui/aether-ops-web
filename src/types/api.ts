@@ -350,7 +350,6 @@ export interface OnRampTask {
 export interface ComponentStateItem {
   component: string;
   /** "not_installed" | "installed" | "running" | "stopped" | "failed" | "installing" | "uninstalling". */
-  state: string;
   status: string;
   action_id?: string;
   last_action?: string;

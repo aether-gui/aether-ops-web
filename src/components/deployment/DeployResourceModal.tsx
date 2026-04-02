@@ -32,7 +32,7 @@ export default function DeployResourceModal({
 
   const stateMap = useMemo(() => {
     const map = new Map<string, string>();
-    componentStates.forEach((cs) => map.set(cs.component, cs.state));
+    componentStates.forEach((cs) => map.set(cs.component, cs.status));
     return map;
   }, [componentStates]);
 
