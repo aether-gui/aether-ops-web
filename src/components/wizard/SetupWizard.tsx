@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import Stepper, { type StepDef } from './Stepper';
 import WizardNav from './WizardNav';
-import DeploymentSetup from '../steps/DeploymentSetup';
 import NodeSelection from '../steps/NodeSelection';
 import PreflightChecks from '../steps/PreflightChecks';
 import RoleAssignment from '../steps/RoleAssignment';
@@ -20,7 +19,6 @@ import { getDeployStepsForRoles } from '../../config/deployOrder';
 import { rolesToComponents } from '../../config/roles';
 
 const STEPS: StepDef[] = [
-  { label: 'Deployment', description: 'Create deployment' },
   { label: 'Nodes', description: 'Select hosts' },
   { label: 'Preflight', description: 'Check readiness' },
   { label: 'Roles', description: 'Assign roles' },
@@ -77,24 +75,22 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
   const canContinue = useMemo(() => {
     switch (currentStep) {
       case 0:
-        return data.deploymentName.trim().length >= 3;
-      case 1:
         return includedNodes.length > 0;
-      case 2: {
+      case 1: {
         const allIncludedNodesVerified = includedNodes.length > 0 &&
           includedNodes.every((n) => data.nodeVerification[n.id] === 'verified');
         return data.preflightPassed && allIncludedNodesVerified;
       }
-      case 3:
+      case 2:
         return true;
-      case 4:
+      case 3:
         return !data.defaultsLoading;
-      case 5:
+      case 4:
         return deploySteps.length > 0;
       default:
         return false;
     }
-  }, [currentStep, includedNodes, data.preflightPassed, data.defaultsLoading, data.nodeVerification, data.deploymentName]);
+  }, [currentStep, includedNodes, data.preflightPassed, data.defaultsLoading, data.nodeVerification]);
 
   const handleStepClick = useCallback(
     (step: number) => {
@@ -113,15 +109,13 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
     setContinueLoading(true);
     try {
       if (currentStep === 0) {
-        await markStepComplete('deployment');
-      } else if (currentStep === 1) {
         try { await syncInventory(); } catch { /* continue anyway */ }
         await markStepComplete('nodes');
-      } else if (currentStep === 2) {
+      } else if (currentStep === 1) {
         await markStepComplete('preflight');
-      } else if (currentStep === 3) {
+      } else if (currentStep === 2) {
         await markStepComplete('roles');
-      } else if (currentStep === 4) {
+      } else if (currentStep === 3) {
         await markStepComplete('config');
       }
     } catch {
@@ -132,7 +126,7 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
 
     setStep(currentStep + 1);
 
-    if (currentStep === 3) {
+    if (currentStep === 2) {
       update({ defaultsLoading: true, onrampConfig: null, configDefaultsErrors: [], configDefaultsApplied: [] });
       const components = rolesToComponents(allRoles);
       composeConfig(components)
@@ -235,16 +229,14 @@ export default function SetupWizard({ initialStep = 0 }: SetupWizardProps) {
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return <DeploymentSetup data={data} update={update} />;
-      case 1:
         return <NodeSelection data={data} update={update} />;
-      case 2:
+      case 1:
         return <PreflightChecks data={data} update={update} />;
-      case 3:
+      case 2:
         return <RoleAssignment data={data} update={update} />;
-      case 4:
+      case 3:
         return <ConfigReview data={data} update={update} />;
-      case 5:
+      case 4:
         return <Deployment data={data} deploySteps={deploySteps} />;
       default:
         return null;

@@ -20,7 +20,7 @@ export interface WizardData {
 function defaultState(initialStep: number): WizardData {
   return {
     currentStep: initialStep,
-    deploymentName: '',
+    deploymentName: 'default',
     nodes: [],
     nodeVerification: {},
     excludedNodeIds: [],
