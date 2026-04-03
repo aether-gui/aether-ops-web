@@ -22,6 +22,7 @@ import type {
   DeployRequest,
   Deployment,
   BulkDeployParseResult,
+  DashboardBody,
 } from '../types/api';
 
 // ---------------------------------------------------------------------------
@@ -70,6 +71,20 @@ export function getTask(id: string, offset?: number) {
   const params: Record<string, string | number> = {};
   if (offset !== undefined) params.offset = offset;
   return get<OnRampTask>(`/onramp/tasks/${id}`, params);
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard
+// ---------------------------------------------------------------------------
+
+/** Returns all component states, probe results, available actions, and active deployment. */
+export function getDashboard() {
+  return get<DashboardBody>('/onramp/dashboard');
+}
+
+/** Triggers a fresh probe cycle and returns updated dashboard data. */
+export function refreshDashboard() {
+  return post<DashboardBody>('/onramp/dashboard/refresh');
 }
 
 // ---------------------------------------------------------------------------

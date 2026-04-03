@@ -1,12 +1,12 @@
-import { Activity, Server, Radio, Users, AlertCircle, CheckCircle, Loader2, Clock, MemoryStick } from 'lucide-react';
+import { Activity, Server, Radio, Users, AlertCircle, CheckCircle, Loader2, Clock, MemoryStick, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { listNodes } from '../api/nodes';
-import { listComponentStates } from '../api/onramp';
 import { getProviders } from '../api/meta';
 import { getCpu, getMemory, getOs } from '../api/system';
+import { useDashboard } from '../hooks/useDashboard';
 import { useMetricsHistory } from '../hooks/useMetricsHistory';
-import type { ManagedNode, ComponentStateItem, CPUInfo, MemoryInfo, OSInfo, ProvidersInfo } from '../types/api';
+import type { ManagedNode, DashboardComponent, CPUInfo, MemoryInfo, OSInfo, ProvidersInfo } from '../types/api';
 
 function Sparkline({ data, color }: { data: { value: number }[]; color: string }) {
   if (data.length < 2) return null;
@@ -30,7 +30,7 @@ function Sparkline({ data, color }: { data: { value: number }[]; color: string }
   );
 }
 
-const HIDDEN_COMPONENTS = new Set(['4gc', 'amp']);
+const HIDDEN_COMPONENTS = new Set(['4gc', 'amp', 'cluster']);
 
 function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
@@ -59,7 +59,46 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
 
-function deriveWebuiState(providers: ProvidersInfo | null): string {
+type RuntimeStatus = 'running' | 'degraded' | 'error' | 'installing' | 'absent' | 'unknown';
+
+function deriveRuntimeStatus(comp: DashboardComponent): RuntimeStatus {
+  if (comp.status === 'installing' || comp.status === 'uninstalling') return 'installing';
+  const probe = comp.probe_result;
+  if (!probe) {
+    if (comp.status === 'not_installed') return 'absent';
+    return 'unknown';
+  }
+  if (probe.status === 'not_installed') return 'absent';
+  if (probe.status === 'degraded') return 'degraded';
+  if (probe.status === 'installed' && probe.healthy) return 'running';
+  if (probe.status === 'installed' && !probe.healthy) return 'error';
+  if (probe.status === 'unknown') return 'unknown';
+  return 'unknown';
+}
+
+function statusLabel(status: RuntimeStatus): string {
+  switch (status) {
+    case 'running': return 'Running';
+    case 'degraded': return 'Degraded';
+    case 'error': return 'Error';
+    case 'installing': return 'Installing';
+    case 'absent': return 'Absent';
+    default: return 'Unknown';
+  }
+}
+
+function statusBadgeClass(status: RuntimeStatus): string {
+  switch (status) {
+    case 'running': return 'bg-green-100 text-green-700';
+    case 'degraded': return 'bg-amber-100 text-amber-700';
+    case 'error': return 'bg-red-100 text-red-700';
+    case 'installing': return 'bg-blue-100 text-blue-700';
+    case 'absent': return 'bg-gray-100 text-gray-500';
+    default: return 'bg-gray-100 text-gray-500';
+  }
+}
+
+function deriveWebuiStatus(providers: ProvidersInfo | null): RuntimeStatus {
   if (!providers) return 'unknown';
   const degraded = providers.providers.some(p => p.degraded);
   return degraded ? 'degraded' : 'running';
@@ -67,52 +106,72 @@ function deriveWebuiState(providers: ProvidersInfo | null): string {
 
 export default function Overview() {
   const [nodes, setNodes] = useState<ManagedNode[]>([]);
-  const [rawComponents, setRawComponents] = useState<ComponentStateItem[]>([]);
   const [providers, setProviders] = useState<ProvidersInfo | null>(null);
   const [systemInfo, setSystemInfo] = useState<{ cpu?: CPUInfo; memory?: MemoryInfo; os?: OSInfo }>({});
-  const [loading, setLoading] = useState(true);
+  const [sideLoading, setSideLoading] = useState(true);
+  const { data: dashboard, loading: dashLoading, refresh } = useDashboard();
   const { cpuHistory, memoryHistory } = useMetricsHistory();
 
   useEffect(() => {
     Promise.all([
       listNodes().then(n => setNodes(n || [])).catch(() => []),
-      listComponentStates().then(c => setRawComponents(c || [])).catch(() => []),
       getProviders().then(setProviders).catch(() => null),
       getCpu().then(cpu => setSystemInfo(prev => ({ ...prev, cpu }))).catch(() => {}),
       getMemory().then(memory => setSystemInfo(prev => ({ ...prev, memory }))).catch(() => {}),
       getOs().then(os => setSystemInfo(prev => ({ ...prev, os }))).catch(() => {}),
-    ]).finally(() => setLoading(false));
+    ]).finally(() => setSideLoading(false));
   }, []);
 
-  const components = useMemo(() => {
-    const filtered = rawComponents.filter(
-      c => !HIDDEN_COMPONENTS.has(c.component.toLowerCase()),
-    );
-    const webuiState = deriveWebuiState(providers);
-    const webuiEntry: ComponentStateItem = {
-      component: 'WebUI',
-      status: webuiState,
-    };
-    return [webuiEntry, ...filtered];
-  }, [rawComponents, providers]);
+  const loading = dashLoading && sideLoading;
 
-  const coreComponents = components.filter(c =>
+  const components = useMemo(() => {
+    if (!dashboard) return [];
+    const filtered = dashboard.components.filter(
+      c => !HIDDEN_COMPONENTS.has(c.name.toLowerCase()),
+    );
+    return filtered.map(c => ({
+      name: c.name,
+      description: c.description,
+      runtimeStatus: deriveRuntimeStatus(c),
+      probeMessage: c.probe_result?.message ?? null,
+    }));
+  }, [dashboard]);
+
+  // Add WebUI as a synthetic component
+  const allComponents = useMemo(() => {
+    const webuiStatus = deriveWebuiStatus(providers);
+    return [
+      { name: 'WebUI', description: 'Aether WebUI', runtimeStatus: webuiStatus, probeMessage: null },
+      ...components,
+    ];
+  }, [components, providers]);
+
+  const coreComponents = allComponents.filter(c =>
     ['5gc', 'sd-core', 'amf', 'smf', 'upf', 'nrf', 'ausf', 'udm', 'udr', 'pcf'].some(name =>
-      c.component.toLowerCase().includes(name)
+      c.name.toLowerCase().includes(name)
     )
   );
 
   const ranNodes = nodes.filter(n => n.roles?.includes('gnb'));
-  const healthyComponents = components.filter(c => c.status === 'running' || c.status === 'installed').length;
-  const totalComponents = components.length;
+  const healthyComponents = allComponents.filter(c => c.runtimeStatus === 'running').length;
+  const totalComponents = allComponents.length;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          High-level summary of your deployment status
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Runtime health and status across your deployment
+          </p>
+        </div>
+        <button
+          onClick={refresh}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <RefreshCw size={13} />
+          Refresh
+        </button>
       </div>
 
       {loading ? (
@@ -259,28 +318,29 @@ export default function Overview() {
                 <h2 className="text-lg font-semibold text-gray-900">Service Status</h2>
               </div>
               <div className="p-6 space-y-4">
-                {components.length === 0 ? (
+                {allComponents.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <AlertCircle className="w-12 h-12 text-gray-300 mb-3" />
                     <p className="text-sm text-gray-500">No components deployed</p>
                     <p className="text-xs text-gray-400 mt-1">Run the setup wizard to get started</p>
                   </div>
                 ) : (
-                  components.slice(0, 6).map((comp) => (
-                    <div key={comp.component} className="flex items-center justify-between">
+                  allComponents.slice(0, 8).map((comp) => (
+                    <div key={comp.name} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Server className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-700">{comp.component}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm text-gray-700">{comp.name}</span>
+                          {comp.probeMessage && comp.runtimeStatus === 'running' && (
+                            <p className="text-xs text-gray-400 truncate max-w-[200px]">{comp.probeMessage}</p>
+                          )}
+                        </div>
                       </div>
-                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                        comp.status === 'running' ? 'bg-green-100 text-green-700' :
-                        comp.status === 'installed' ? 'bg-blue-100 text-blue-700' :
-                        comp.status === 'degraded' ? 'bg-amber-100 text-amber-700' :
-                        comp.status === 'stopped' ? 'bg-gray-100 text-gray-700' :
-                        comp.status === 'unknown' ? 'bg-gray-100 text-gray-500' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {comp.status}
+                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${statusBadgeClass(comp.runtimeStatus)}`}>
+                        {comp.runtimeStatus === 'installing' && (
+                          <Loader2 size={10} className="inline animate-spin mr-1 -mt-0.5" />
+                        )}
+                        {statusLabel(comp.runtimeStatus)}
                       </span>
                     </div>
                   ))
