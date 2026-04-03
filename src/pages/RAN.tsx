@@ -149,18 +149,18 @@ export default function RAN() {
                           {comp.component}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {comp.state}
+                          {comp.status}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                            comp.state === 'running' ? 'bg-green-100 text-green-700' :
-                            comp.state === 'installed' ? 'bg-blue-100 text-blue-700' :
-                            comp.state === 'stopped' ? 'bg-gray-100 text-gray-700' :
+                            comp.status === 'running' ? 'bg-green-100 text-green-700' :
+                            comp.status === 'installed' ? 'bg-blue-100 text-blue-700' :
+                            comp.status === 'stopped' ? 'bg-gray-100 text-gray-700' :
                             'bg-red-100 text-red-700'
                           }`}>
-                            {comp.state === 'running' ? 'Running' :
-                             comp.state === 'installed' ? 'Installed' :
-                             comp.state === 'stopped' ? 'Stopped' : 'Error'}
+                            {comp.status === 'running' ? 'Running' :
+                             comp.status === 'installed' ? 'Installed' :
+                             comp.status === 'stopped' ? 'Stopped' : 'Error'}
                           </span>
                         </td>
                       </tr>

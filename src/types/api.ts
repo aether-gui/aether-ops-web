@@ -350,7 +350,6 @@ export interface OnRampTask {
 export interface ComponentStateItem {
   component: string;
   /** "not_installed" | "installed" | "running" | "stopped" | "failed" | "installing" | "uninstalling". */
-  state: string;
   status: string;
   action_id?: string;
   last_action?: string;
@@ -683,4 +682,20 @@ export interface ConfigComposeResult {
   active_blueprints?: string[];
   components: string[];
   config: OnRampConfig;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk deployment  –  /api/v1/onramp/deploy/bulk
+// ---------------------------------------------------------------------------
+
+export interface BulkDeployResource {
+  component: string;
+  action: string;
+  target_node?: string;
+}
+
+export interface BulkDeployParseResult {
+  valid: boolean;
+  resources: BulkDeployResource[];
+  errors?: string[];
 }

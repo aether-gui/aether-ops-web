@@ -4,7 +4,7 @@
  * Aether OnRamp operations: components, tasks, action history,
  * deployment state, config profiles, and inventory management.
  */
-import { get, post, del, patch as patchRequest } from './client';
+import { get, post, del, patch as patchRequest, ApiRequestError } from './client';
 import type {
   Component,
   OnRampTask,
@@ -21,6 +21,7 @@ import type {
   ConfigComposeResult,
   DeployRequest,
   Deployment,
+  BulkDeployParseResult,
 } from '../types/api';
 
 // ---------------------------------------------------------------------------
@@ -89,6 +90,39 @@ export function getDeployment(id: string) {
 
 export function cancelDeployment(id: string) {
   return del<void>(`/onramp/deployments/${id}`);
+}
+
+/**
+ * Uploads a bulk deployment file for parsing and validation.
+ * Uses FormData instead of JSON so the backend receives the raw file.
+ * The endpoint returns a parsed plan that can be reviewed before deploying.
+ */
+export async function uploadBulkDeployFile(file: File): Promise<BulkDeployParseResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const BASE_URL = `${import.meta.env.VITE_BACKEND_URL ?? window.location.origin}/api/v1`;
+  const token = localStorage.getItem('aether_api_token');
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}/onramp/deploy/bulk`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let body = { detail: res.statusText };
+    try {
+      body = await res.json();
+    } catch {
+      /* use default */
+    }
+    throw new ApiRequestError(res.status, body);
+  }
+
+  return res.json();
 }
 
 // ---------------------------------------------------------------------------

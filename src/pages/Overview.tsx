@@ -91,7 +91,6 @@ export default function Overview() {
     const webuiState = deriveWebuiState(providers);
     const webuiEntry: ComponentStateItem = {
       component: 'WebUI',
-      state: webuiState,
       status: webuiState,
     };
     return [webuiEntry, ...filtered];
@@ -104,7 +103,7 @@ export default function Overview() {
   );
 
   const ranNodes = nodes.filter(n => n.roles?.includes('gnb'));
-  const healthyComponents = components.filter(c => c.state === 'running' || c.state === 'installed').length;
+  const healthyComponents = components.filter(c => c.status === 'running' || c.status === 'installed').length;
   const totalComponents = components.length;
 
   return (
@@ -274,14 +273,14 @@ export default function Overview() {
                         <span className="text-sm text-gray-700">{comp.component}</span>
                       </div>
                       <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                        comp.state === 'running' ? 'bg-green-100 text-green-700' :
-                        comp.state === 'installed' ? 'bg-blue-100 text-blue-700' :
-                        comp.state === 'degraded' ? 'bg-amber-100 text-amber-700' :
-                        comp.state === 'stopped' ? 'bg-gray-100 text-gray-700' :
-                        comp.state === 'unknown' ? 'bg-gray-100 text-gray-500' :
+                        comp.status === 'running' ? 'bg-green-100 text-green-700' :
+                        comp.status === 'installed' ? 'bg-blue-100 text-blue-700' :
+                        comp.status === 'degraded' ? 'bg-amber-100 text-amber-700' :
+                        comp.status === 'stopped' ? 'bg-gray-100 text-gray-700' :
+                        comp.status === 'unknown' ? 'bg-gray-100 text-gray-500' :
                         'bg-red-100 text-red-700'
                       }`}>
-                        {comp.state}
+                        {comp.status}
                       </span>
                     </div>
                   ))
