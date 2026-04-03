@@ -646,6 +646,15 @@ export interface FixResult {
   error: string;
 }
 
+/** POST /preflight/fix-all – batch fix for all fixable failed checks. */
+export interface FixAllResult {
+  applied: number;
+  failed: number;
+  skipped: number;
+  total: number;
+  results: FixResult[];
+}
+
 // ---------------------------------------------------------------------------
 // Wizard (frontend-only state management via backend)
 // ---------------------------------------------------------------------------

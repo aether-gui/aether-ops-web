@@ -15,10 +15,11 @@ import {
   AlertCircle,
   Wifi,
 } from 'lucide-react';
-import { runPreflightChecks, applyFix } from '../../api/preflight';
+import { runPreflightChecks, applyFix, fixAll } from '../../api/preflight';
 import { syncInventory, executeAction, getTask } from '../../api/onramp';
+import Modal from '../shared/Modal';
 import type { WizardData } from '../../hooks/useWizardState';
-import type { CheckResult, ManagedNode, NodePreflightSummary } from '../../types/api';
+import type { CheckResult, ManagedNode, NodePreflightSummary, FixAllResult } from '../../types/api';
 
 interface PreflightChecksProps {
   data: WizardData;
@@ -171,6 +172,9 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
   const [fixMessages, setFixMessages] = useState<Record<string, FixMsg>>({});
   const [verifyingAll, setVerifyingAll] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [fixAllTarget, setFixAllTarget] = useState<{ nodeId?: string; checks: CheckResult[] } | null>(null);
+  const [fixingAll, setFixingAll] = useState(false);
+  const [fixAllResult, setFixAllResult] = useState<FixAllResult | null>(null);
 
   const excluded = useMemo(() => new Set(data.excludedNodeIds), [data.excludedNodeIds]);
   const includedNodes = useMemo(
@@ -214,6 +218,16 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
           warning: result.warning || undefined,
         },
       }));
+      if (result.applied) {
+        // Re-run checks for this scope after a successful fix
+        if (!nodeId) {
+          const summary = await runPreflightChecks();
+          update({ preflightResults: summary.results });
+        } else {
+          const summary = await runPreflightChecks({ scope: 'all-nodes' });
+          setNodeCheckResults(summary.nodes ?? []);
+        }
+      }
     } catch (err) {
       setFixMessages((prev) => ({
         ...prev,
@@ -222,7 +236,52 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
     } finally {
       setFixingKey(null);
     }
-  }, []);
+  }, [update]);
+
+  const handleFixAll = useCallback(async (nodeId?: string) => {
+    setFixingAll(true);
+    setFixAllResult(null);
+    try {
+      const result = await fixAll(nodeId);
+      setFixAllResult(result);
+      // Update individual fix messages from results
+      for (const r of result.results) {
+        const key = nodeId ? `${nodeId}:${r.id}` : `local:${r.id}`;
+        setFixMessages((prev) => ({
+          ...prev,
+          [key]: {
+            applied: r.applied,
+            message: r.message || (r.error ? r.error : 'Fix applied'),
+            warning: r.warning || undefined,
+          },
+        }));
+      }
+      // Re-run checks after fix-all
+      if (!nodeId) {
+        const summary = await runPreflightChecks();
+        update({ preflightResults: summary.results });
+      } else {
+        const summary = await runPreflightChecks({ scope: 'all-nodes' });
+        setNodeCheckResults(summary.nodes ?? []);
+      }
+    } catch (err) {
+      setFixAllResult({
+        applied: 0,
+        failed: 1,
+        skipped: 0,
+        total: 1,
+        results: [{
+          id: '',
+          applied: false,
+          message: err instanceof Error ? err.message : 'Fix all failed',
+          warning: '',
+          error: err instanceof Error ? err.message : 'Fix all failed',
+        }],
+      });
+    } finally {
+      setFixingAll(false);
+    }
+  }, [update]);
 
   const verifyNodes = useCallback(async () => {
     if (includedNodes.length === 0) return;
@@ -592,23 +651,44 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
                       <p className="text-xs text-red-700 font-mono">{nd.error}</p>
                     </div>
                   ) : nd.results.length > 0 ? (
-                    <div className="space-y-2">
-                      {nd.results.map((check) => {
-                        const expandKey = `${nd.checkIdPrefix}:${check.id}`;
+                    <>
+                      {(() => {
+                        const fixable = nd.results.filter((r) => !r.passed && r.can_fix);
+                        if (fixable.length === 0) return null;
                         return (
-                          <CheckRow
-                            key={check.id}
-                            check={check}
-                            expandKey={expandKey}
-                            expanded={expandedIds.has(expandKey)}
-                            onToggle={toggleExpand}
-                            fixingKey={fixingKey}
-                            fixMsg={fixMessages[expandKey]}
-                            onFix={(c) => handleFix(c, nd.fixNodeId)}
-                          />
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => setFixAllTarget({ nodeId: nd.fixNodeId, checks: fixable })}
+                              disabled={fixingAll || fixingKey !== null}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 disabled:opacity-40 transition-colors"
+                            >
+                              <Wrench size={12} />
+                              Fix All ({fixable.length})
+                            </button>
+                            <span className="text-xs text-gray-400">
+                              {fixable.length} fixable issue{fixable.length !== 1 ? 's' : ''} on this node
+                            </span>
+                          </div>
                         );
-                      })}
-                    </div>
+                      })()}
+                      <div className="space-y-2">
+                        {nd.results.map((check) => {
+                          const expandKey = `${nd.checkIdPrefix}:${check.id}`;
+                          return (
+                            <CheckRow
+                              key={check.id}
+                              check={check}
+                              expandKey={expandKey}
+                              expanded={expandedIds.has(expandKey)}
+                              onToggle={toggleExpand}
+                              fixingKey={fixingKey}
+                              fixMsg={fixMessages[expandKey]}
+                              onFix={(c) => handleFix(c, nd.fixNodeId)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </>
                   ) : null}
                 </div>
               )}
@@ -616,6 +696,107 @@ export default function PreflightChecks({ data, update }: PreflightChecksProps) 
           );
         })}
       </div>
+
+      {/* Fix All confirmation modal */}
+      <Modal
+        open={fixAllTarget !== null}
+        onClose={() => { if (!fixingAll) { setFixAllTarget(null); setFixAllResult(null); } }}
+        title="Fix All Issues"
+      >
+        {fixAllTarget && (
+          <div className="space-y-4">
+            {!fixAllResult && !fixingAll && (
+              <>
+                <p className="text-sm text-gray-700">
+                  The following {fixAllTarget.checks.length} issue{fixAllTarget.checks.length !== 1 ? 's' : ''} will
+                  be automatically fixed:
+                </p>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {fixAllTarget.checks.map((check) => (
+                    <div key={check.id} className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{check.name}</p>
+                          {check.fix_warning && (
+                            <p className="text-xs text-amber-700 mt-1">{check.fix_warning}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => { setFixAllTarget(null); setFixAllResult(null); }}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleFixAll(fixAllTarget.nodeId)}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors"
+                  >
+                    Fix All
+                  </button>
+                </div>
+              </>
+            )}
+
+            {fixingAll && (
+              <div className="flex items-center justify-center py-8 gap-3">
+                <Loader2 size={20} className="text-amber-500 animate-spin" />
+                <p className="text-sm text-gray-600">Applying fixes...</p>
+              </div>
+            )}
+
+            {fixAllResult && !fixingAll && (
+              <>
+                <div className={`p-4 rounded-lg border ${
+                  fixAllResult.failed === 0
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-amber-50 border-amber-200'
+                }`}>
+                  <p className={`text-sm font-medium ${
+                    fixAllResult.failed === 0 ? 'text-emerald-800' : 'text-amber-800'
+                  }`}>
+                    {fixAllResult.applied} fixed, {fixAllResult.failed} failed, {fixAllResult.skipped} skipped
+                  </p>
+                </div>
+
+                {fixAllResult.results.length > 0 && (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {fixAllResult.results.map((r) => (
+                      <div
+                        key={r.id}
+                        className={`flex items-start gap-2 px-3 py-2 rounded-md text-xs ${
+                          r.applied
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {r.applied ? (
+                          <CheckCircle size={13} className="flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <XCircle size={13} className="flex-shrink-0 mt-0.5" />
+                        )}
+                        <span>{r.id}: {r.message || r.error}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => { setFixAllTarget(null); setFixAllResult(null); }}
+                  className="w-full px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
