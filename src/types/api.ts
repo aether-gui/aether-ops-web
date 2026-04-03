@@ -568,6 +568,62 @@ export interface N3IWFConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Dashboard  –  /api/v1/onramp/dashboard
+// ---------------------------------------------------------------------------
+
+export interface DashboardProbeResult {
+  component: string;
+  healthy: boolean;
+  status: string;
+  message: string;
+  probed_at: string;
+  error?: string;
+}
+
+export interface DashboardComponentAction {
+  name: string;
+  description: string;
+  enabled: boolean;
+  reason?: string;
+}
+
+export interface DashboardComponentDeps {
+  requires: string[];
+  required_by: string[];
+}
+
+export interface DashboardComponent {
+  name: string;
+  description: string;
+  status: string;
+  probe_result: DashboardProbeResult | null;
+  actions: DashboardComponentAction[];
+  dependencies: DashboardComponentDeps;
+  last_action?: string;
+  action_id?: string;
+  updated_at?: number;
+}
+
+export interface DashboardActiveDeployment {
+  id: string;
+  status: string;
+  actions: {
+    seq: number;
+    action_id: string;
+    component: string;
+    action: string;
+    status: string;
+  }[];
+  created_at: number;
+}
+
+export interface DashboardBody {
+  components: DashboardComponent[];
+  active_deployment?: DashboardActiveDeployment | null;
+  probed_at: number;
+}
+
+// ---------------------------------------------------------------------------
 // Deployments  –  /api/v1/onramp/deploy, /api/v1/onramp/deployments/*
 // ---------------------------------------------------------------------------
 

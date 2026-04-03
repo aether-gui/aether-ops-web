@@ -1,27 +1,72 @@
 import { Radio, Activity, Signal, Loader2, AlertCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { listNodes } from '../api/nodes';
-import { listComponentStates } from '../api/onramp';
-import type { ManagedNode, ComponentStateItem } from '../types/api';
+import { useDashboard } from '../hooks/useDashboard';
+import type { ManagedNode, DashboardComponent } from '../types/api';
+
+type RuntimeStatus = 'running' | 'degraded' | 'error' | 'installing' | 'absent' | 'unknown';
+
+function deriveRuntimeStatus(comp: DashboardComponent): RuntimeStatus {
+  if (comp.status === 'installing' || comp.status === 'uninstalling') return 'installing';
+  const probe = comp.probe_result;
+  if (!probe) {
+    if (comp.status === 'not_installed') return 'absent';
+    return 'unknown';
+  }
+  if (probe.status === 'not_installed') return 'absent';
+  if (probe.status === 'degraded') return 'degraded';
+  if (probe.status === 'installed' && probe.healthy) return 'running';
+  if (probe.status === 'installed' && !probe.healthy) return 'error';
+  return 'unknown';
+}
+
+function statusLabel(status: RuntimeStatus): string {
+  switch (status) {
+    case 'running': return 'Running';
+    case 'degraded': return 'Degraded';
+    case 'error': return 'Error';
+    case 'installing': return 'Installing';
+    case 'absent': return 'Absent';
+    default: return 'Unknown';
+  }
+}
+
+function statusBadgeClass(status: RuntimeStatus): string {
+  switch (status) {
+    case 'running': return 'bg-green-100 text-green-700';
+    case 'degraded': return 'bg-amber-100 text-amber-700';
+    case 'error': return 'bg-red-100 text-red-700';
+    case 'installing': return 'bg-blue-100 text-blue-700';
+    case 'absent': return 'bg-gray-100 text-gray-500';
+    default: return 'bg-gray-100 text-gray-500';
+  }
+}
 
 export default function RAN() {
   const [nodes, setNodes] = useState<ManagedNode[]>([]);
-  const [components, setComponents] = useState<ComponentStateItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [nodesLoading, setNodesLoading] = useState(true);
+  const { data: dashboard, loading: dashLoading } = useDashboard();
 
   useEffect(() => {
-    Promise.all([
-      listNodes().then(setNodes).catch(() => []),
-      listComponentStates().then(c => setComponents(c || [])).catch(() => []),
-    ]).finally(() => setLoading(false));
+    listNodes().then(n => setNodes(n || [])).catch(() => []).finally(() => setNodesLoading(false));
   }, []);
 
+  const loading = dashLoading && nodesLoading;
+
   const ranNodes = nodes.filter(n => n.roles?.includes('gnb'));
-  const ranComponents = components.filter(c =>
-    ['ran', 'gnb', 'srs', 'ueransim'].some(name =>
-      c.component.toLowerCase().includes(name)
-    )
-  );
+  const ranComponents = useMemo(() => {
+    if (!dashboard) return [];
+    return dashboard.components
+      .filter(c =>
+        ['gnbsim', 'srsran', 'ueransim', 'oai'].some(name =>
+          c.name.toLowerCase().includes(name)
+        )
+      )
+      .map(c => ({
+        ...c,
+        runtimeStatus: deriveRuntimeStatus(c),
+      }));
+  }, [dashboard]);
 
   return (
     <div className="space-y-6">
@@ -135,7 +180,7 @@ export default function RAN() {
                         Component
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        State
+                        Health
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -144,23 +189,33 @@ export default function RAN() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {ranComponents.map((comp) => (
-                      <tr key={comp.component} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {comp.component}
+                      <tr key={comp.name} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{comp.name}</p>
+                            {comp.probe_result?.message && (
+                              <p className="text-xs text-gray-500">{comp.probe_result.message}</p>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {comp.status}
+                          {comp.probe_result?.healthy ? (
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                              Healthy
+                            </span>
+                          ) : comp.runtimeStatus === 'absent' ? (
+                            <span className="text-gray-400">--</span>
+                          ) : (
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-red-500" />
+                              Unhealthy
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                            comp.status === 'running' ? 'bg-green-100 text-green-700' :
-                            comp.status === 'installed' ? 'bg-blue-100 text-blue-700' :
-                            comp.status === 'stopped' ? 'bg-gray-100 text-gray-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {comp.status === 'running' ? 'Running' :
-                             comp.status === 'installed' ? 'Installed' :
-                             comp.status === 'stopped' ? 'Stopped' : 'Error'}
+                          <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${statusBadgeClass(comp.runtimeStatus)}`}>
+                            {statusLabel(comp.runtimeStatus)}
                           </span>
                         </td>
                       </tr>
